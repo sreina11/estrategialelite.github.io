@@ -1,0 +1,26 @@
+name: Actualizar tecnicos en WordPress
+
+on:
+  schedule:
+    - cron: '0 */4 * * *'  # Ejecuta cada 4 horas
+
+jobs:
+  update_post:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Configurar Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.12'
+
+      - name: Instalar Dependencias
+        run: pip install tradingview_ta pandas requests
+
+      - name: Ejecutar Script
+        env:
+          WORDPRESS_USER: ${{ secrets.WORDPRESS_USER }}
+          WORDPRESS_PASSWORD: ${{ secrets.WORDPRESS_PASSWORD }}
+        run: python main.py
