@@ -370,3 +370,104 @@ if response_aperturas.status_code == 200:
 else:
     print(f"❌ Error al actualizar Aperturas Mensuales: {response_aperturas.status_code}, {response_aperturas.text}")
 
+# CONFLUENCIAS APERTURAS Y OSCILADORES RSI Y STOC
+import pandas as pd
+
+# **Eliminar duplicados en df_resultados antes de unir**
+df_resultados_unicos = df_resultados.drop_duplicates(subset=["Ticker"])
+
+# **Merge con RSI y Estocástico**
+df_combinado = df_resultados_unicos.merge(df_rsi, on="Ticker", how="inner").merge(df_stoch, on="Ticker", how="inner")
+
+# **Función para verificar condiciones del RSI**
+def cumple_condicion_rsi(row):
+    return any([
+        row["RSI_4H"] <= 30, row["RSI_4H"] >= 70,
+        row["RSI_1D"] <= 30, row["RSI_1D"] >= 70,
+        row["RSI_1W"] <= 30, row["RSI_1W"] >= 70,
+        row["RSI_1M"] <= 30, row["RSI_1M"] >= 70
+    ])
+
+# **Función para verificar condiciones del Estocástico**
+def cumple_condicion_stoch(row):
+    return any([
+        row["Stoch_4H"] <= 20, row["Stoch_4H"] >= 80,
+        row["Stoch_1D"] <= 20, row["Stoch_1D"] >= 80,
+        row["Stoch_1W"] <= 20, row["Stoch_1W"] >= 80,
+        row["Stoch_1M"] <= 20, row["Stoch_1M"] >= 80
+    ])
+
+# **Aplicar filtros**
+df_filtrado_final = df_combinado[df_combinado.apply(
+    lambda row: cumple_condicion_rsi(row) or cumple_condicion_stoch(row), axis=1
+)]
+
+# **Mostrar resultado final**
+print("✅ Activos cerca de la apertura mensual ±1% y con RSI o Estocástico extremos:")
+print(df_filtrado_final.sort_values(by="Ticker"))  # ✅ Reemplazo `display()` por `print()`
+
+# POST CONFLUENCIAS APERTURAS RSI STOCH
+import requests
+import datetime
+import pandas as pd
+import os  # Para manejar variables de entorno
+
+# ⚠️ **ID de WordPress para Confluencias Técnicas**
+post_id_confluencias = "1032"  # ⚠️ Usa el ID correcto de WordPress
+
+# URL de la API para actualizar el post
+wordpress_url_confluencias = f"https://estrategiaelite.com/wp-json/wp/v2/posts/{post_id_confluencias}"
+
+# **Función para aplicar formato de colores**
+def aplicar_colores(valor, tipo):
+    if pd.notna(valor):
+        if tipo == "RSI":
+            if valor >= 70:
+                return f'<span style="color: red; font-weight: bold;">{valor}</span>'  # Sobrecompra
+            elif valor <= 30:
+                return f'<span style="color: green; font-weight: bold;">{valor}</span>'  # Sobreventa
+        elif tipo == "Stoch":
+            if valor >= 80:
+                return f'<span style="color: red; font-weight: bold;">{valor}</span>'  # Sobrecompra
+            elif valor <= 20:
+                return f'<span style="color: green; font-weight: bold;">{valor}</span>'  # Sobreventa
+    return f'<span style="font-weight: bold;">{valor}</span>'  # Negrita sin color
+
+# **Aplicar colores al DataFrame**
+df_coloreado = df_filtrado_final.copy()
+for col in ["RSI_4H", "RSI_1D", "RSI_1W", "RSI_1M"]:
+    df_coloreado[col] = df_coloreado[col].apply(lambda x: aplicar_colores(x, "RSI"))
+for col in ["Stoch_4H", "Stoch_1D", "Stoch_1W", "Stoch_1M"]:
+    df_coloreado[col] = df_coloreado[col].apply(lambda x: aplicar_colores(x, "Stoch"))
+
+# **Diseño de la tabla en HTML**
+def generar_tabla_html(df):
+    estilos = """
+    <style>
+        table {border-collapse: collapse; width: 100%; font-family: Arial;}
+        th, td {border: 1px solid #ddd; padding: 10px; text-align: center;}
+        th {background-color: #0073aa; color: white; font-weight: bold;}
+        tr:nth-child(even) {background-color: #f2f2f2;}
+        tr:hover {background-color: #ddd;}
+    </style>
+    """
+    return estilos + df.to_html(index=False, escape=False)
+
+# **Datos de la actualización**
+post_data_confluencias = {
+    "title": f"Confluencias Técnicas - {datetime.datetime.now().strftime('%Y-%m-%d')}",
+    "content": generar_tabla_html(df_coloreado)
+}
+
+# **Ejecutar la solicitud PUT para actualizar el post en WordPress**
+response_confluencias = requests.put(
+    wordpress_url_confluencias,
+    json=post_data_confluencias,
+    auth=(os.getenv("WORDPRESS_USER"), os.getenv("WORDPRESS_PASSWORD"))  # 🔒 Seguridad en GitHub
+)
+
+# **Confirmación del éxito**
+if response_confluencias.status_code == 200:
+    print("✅ ¡Publicación de Confluencias Técnicas actualizada exitosamente en WordPress!")
+else:
+    print(f"❌ Error al actualizar Confluencias: {response_confluencias.status_code}, {response_confluencias.text}")
