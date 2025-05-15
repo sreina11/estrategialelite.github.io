@@ -1,8 +1,8 @@
+# RSI. Activos y mercado
 from tradingview_ta import TA_Handler, Interval
 import pandas as pd
 import datetime
 
-# RSI. Activos y mercado
 activos = {
     "SPY": "AMEX",
     "DJI": "DJI",
@@ -251,3 +251,122 @@ if response_stoch.status_code == 200:
     print("✅ ¡Publicación del Oscilador Estocástico actualizada exitosamente en WordPress!")
 else:
     print(f"❌ Error al actualizar el Estocástico: {response_stoch.status_code}, {response_stoch.text}")
+
+# APERTURAS MENSUALES INDICADOR
+import yfinance as yf
+import pandas as pd
+from datetime import datetime, timedelta
+
+# Definir los tickers y sus mercados
+tickers_info = {
+    "SPY": "AMEX", "^DJI": "DJI", "NDX": "NASDAQ", "MSFT": "NASDAQ", "GOOGL": "NASDAQ",
+    "META": "NASDAQ", "IBM": "NYSE", "V": "NYSE", "JPM": "NYSE", "MA": "NYSE",
+    "AAPL": "NASDAQ", "AMD": "NASDAQ", "NVDA": "NASDAQ", "AMZN": "NASDAQ", "KO": "NYSE",
+    "NKE": "NYSE", "DIS": "NYSE", "MCD": "NYSE", "NFLX": "NASDAQ", "CAT": "NYSE",
+    "TSLA": "NASDAQ", "CVX": "NYSE", "XOM": "NYSE", "JNJ": "NYSE"
+}
+
+# Convertir a lista de tickers
+tickers = list(tickers_info.keys())
+
+# Definir el rango de fechas: últimos 7 meses
+end_date = datetime.today()
+start_date = end_date - timedelta(days=210)
+
+# Descargar datos de los tickers
+data = yf.download(tickers, start=start_date, end=end_date, interval='1d', group_by='ticker', auto_adjust=False)
+
+# Función para obtener la apertura del primer día hábil de cada mes
+def get_monthly_openings(df):
+    monthly_open = df.resample('MS').first()  # 'MS' = Month Start
+    return monthly_open[['Open']]
+
+# Crear una lista para almacenar resultados
+resultados = []
+
+# Procesar cada ticker
+for ticker in tickers:
+    try:
+        df = data[ticker].dropna()
+        df.index = pd.to_datetime(df.index)
+
+        # Precio actual
+        precio_actual = df['Close'].iloc[-1]
+
+        # Aperturas mensuales
+        monthly_open = get_monthly_openings(df)
+        monthly_open = monthly_open.tail(6)
+
+        # Comparar cada mes
+        for fecha, row in monthly_open.iterrows():
+            apertura = row['Open']
+            diferencia = (precio_actual - apertura) / apertura * 100  # en %
+
+            if -1 <= diferencia <= 1:
+                resultados.append({
+                    'Ticker': ticker,
+                    'Mes': fecha.strftime('%Y-%m'),
+                    'Apertura Mensual': round(apertura, 2),
+                    'Precio Actual': round(precio_actual, 2),
+                    'Diferencia (%)': round(diferencia, 2)
+                })
+    except Exception as e:
+        print(f"Error procesando {ticker}: {e}")
+
+# Mostrar resultados
+df_resultados = pd.DataFrame(resultados).sort_values(by=['Mes', 'Ticker'])
+print(df_resultados)  # ✅ Reemplazo `display()` por `print()`
+
+import requests
+import datetime
+import os  # Para manejar variables de entorno
+
+# ⚠️ **ID de WordPress para Aperturas Mensuales**
+post_id_aperturas = "990"  # ⚠️ Usa el ID correcto de WordPress
+
+# URL de la API para actualizar el post
+wordpress_url_aperturas = f"https://estrategiaelite.com/wp-json/wp/v2/posts/{post_id_aperturas}"
+
+# **Función para aplicar formato al DataFrame**
+def aplicar_colores(valor):
+    if pd.notna(valor):
+        return f'<span style="font-weight: bold;">{valor}</span>'  # Negrita para todos
+    return str(valor)
+
+# **Copiar DataFrame y aplicar formato**
+df_aperturas_coloreado = df_resultados.copy()
+for col in ["Apertura Mensual", "Precio Actual", "Diferencia (%)"]:
+    df_aperturas_coloreado[col] = df_aperturas_coloreado[col].apply(aplicar_colores)
+
+# **Diseño de la tabla en HTML**
+def generar_tabla_html(df):
+    estilos = """
+    <style>
+        table {border-collapse: collapse; width: 100%; font-family: Arial;}
+        th, td {border: 1px solid #ddd; padding: 10px; text-align: center;}
+        th {background-color: #0073aa; color: white; font-weight: bold;}
+        tr:nth-child(even) {background-color: #f2f2f2;}
+        tr:hover {background-color: #ddd;}
+    </style>
+    """
+    return estilos + df.to_html(index=False, escape=False)
+
+# **Datos de la actualización**
+post_data_aperturas = {
+    "title": f"Aperturas Mensuales de Activos - {datetime.datetime.now().strftime('%Y-%m-%d')}",
+    "content": generar_tabla_html(df_aperturas_coloreado)
+}
+
+# **Ejecutar la solicitud PUT para actualizar el post en WordPress**
+response_aperturas = requests.put(
+    wordpress_url_aperturas,
+    json=post_data_aperturas,
+    auth=(os.getenv("WORDPRESS_USER"), os.getenv("WORDPRESS_PASSWORD"))  # 🔒 Seguridad en GitHub
+)
+
+# **Confirmación del éxito**
+if response_aperturas.status_code == 200:
+    print("✅ ¡Publicación de Aperturas Mensuales actualizada exitosamente en WordPress!")
+else:
+    print(f"❌ Error al actualizar Aperturas Mensuales: {response_aperturas.status_code}, {response_aperturas.text}")
+
