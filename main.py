@@ -1000,7 +1000,6 @@ else:
     # **Mostrar el DataFrame**
     print("✅ Activos con confluencias entre Bandas de Bollinger, RSI y Estocástico:")
     print(df_filtrado_confluencias)
-
 # Publicacion confluencias BB y estoc
 import requests
 import datetime
@@ -1015,11 +1014,15 @@ wordpress_url_confluencias = f"https://estrategiaelite.com/wp-json/wp/v2/posts/{
 
 # **Eliminar columnas innecesarias solo si existen**
 columnas_a_eliminar = ["Precio_Semanal", "Precio_Mensual"]
-df_coloreado_confluencias = df_confluencias.drop(columns=[col for col in columnas_a_eliminar if col in df_confluencias.columns]).copy()
+df_coloreado_confluencias = df_filtrado_confluencias.drop(
+    columns=[col for col in columnas_a_eliminar if col in df_filtrado_confluencias.columns]
+).copy()
 
 # **Redondear precios y Bandas de Bollinger a 2 decimales**
-columnas_a_redondear = ["Precio<br>Diario", "Banda<br>Superior<br>Diaria", "Banda<br>Inferior<br>Diaria",
-                         "BB_Upper_Semanal", "BB_Lower_Semanal", "BB_Upper_Mensual", "BB_Lower_Mensual"]
+columnas_a_redondear = [
+    "Precio<br>Diario", "Banda<br>Superior<br>Diaria", "Banda<br>Inferior<br>Diaria",
+    "BB_Upper_Semanal", "BB_Lower_Semanal", "BB_Upper_Mensual", "BB_Lower_Mensual"
+]
 for col in columnas_a_redondear:
     if col in df_coloreado_confluencias.columns:
         df_coloreado_confluencias[col] = df_coloreado_confluencias[col].astype(float).round(2)
@@ -1076,6 +1079,8 @@ if response_confluencias.status_code == 200:
     print("✅ ¡Publicación de confluencias actualizada exitosamente en WordPress!")
 else:
     print(f"❌ Error al actualizar en WordPress: {response_confluencias.status_code}, {response_confluencias.text}")
+
+
 
 
 
