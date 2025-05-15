@@ -3,7 +3,7 @@ name: Actualizar tecnicos en WordPress
 on:
   workflow_dispatch:  # Permite ejecución manual en Actions
   schedule:
-    - cron: '0 */3 * * *'  # Ejecuta cada 3 horas
+    - cron: '0 */8 * * *'  # Ejecuta cada 8 horas
 
 jobs:
   update_post:
