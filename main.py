@@ -1080,6 +1080,114 @@ if response_confluencias.status_code == 200:
 else:
     print(f"❌ Error al actualizar en WordPress: {response_confluencias.status_code}, {response_confluencias.text}")
 
+# INDICADORES ECONOMICOS
+
+import requests
+from bs4 import BeautifulSoup
+import pandas as pd
+
+# **Lista de indicadores económicos y sus URLs**
+indicadores = {
+    "Tasa de Interés": "https://www.myfxbook.com/forex-economic-calendar/united-states/fed-interest-rate-decision",
+    "PMI (Purchasing Manager Index)": "https://www.myfxbook.com/forex-economic-calendar/united-states/sp-global-manufacturing-pmi",
+    "CPI (Índice de Precios al Consumidor)": "https://www.myfxbook.com/forex-economic-calendar/united-states/inflation-rate-yoy",
+    "PPI (Producer Price Index)": "https://www.myfxbook.com/forex-economic-calendar/united-states/ppi-yoy",
+    "Consumer Confidence": "https://www.myfxbook.com/forex-economic-calendar/united-states/cb-consumer-confidence",
+    "Jobless Claims": "https://www.myfxbook.com/forex-economic-calendar/united-states/initial-jobless-claims",
+    "Non-Farm Payroll": "https://www.myfxbook.com/forex-economic-calendar/united-states/non-farm-payrolls",
+    "GDP (Producto Interno Bruto)": "https://www.myfxbook.com/forex-economic-calendar/united-states/gdp-growth-rate-qoq",
+    "Retail Sales": "https://www.myfxbook.com/forex-economic-calendar/united-states/retail-sales-mom",
+    "Trade Balance": "https://www.myfxbook.com/forex-economic-calendar/united-states/goods-trade-balance"
+}
+
+# **Selectores CSS**
+selectores_css = {
+    "Fecha": 'div:nth-child(3) > div > div:nth-child(3) > div:nth-child(2) > span:nth-child(2)',
+    "Actual": 'div:nth-child(3) > div > div:nth-child(2) > div:nth-child(4) > span:nth-child(2) > span',
+    "Anterior": 'div:nth-child(3) > div > div:nth-child(2) > div:nth-child(2) > span:nth-child(2) > span',
+    "Esperado": 'div:nth-child(3) > div > div:nth-child(2) > div:nth-child(3) > span:nth-child(2)'
+}
+
+# **Lista para almacenar los datos**
+datos = []
+
+# **Extraer datos de cada indicador**
+headers = {"User-Agent": "Mozilla/5.0"}
+for indicador, url in indicadores.items():
+    try:
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()  # Verifica si la respuesta es válida (código 200)
+
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        # **Extraer cada dato usando selectores CSS**
+        datos_evento = {
+            "Indicador": indicador,
+            "Fecha": soup.select_one(selectores_css["Fecha"]).text.strip() if soup.select_one(selectores_css["Fecha"]) else "No disponible",
+            "Actual": soup.select_one(selectores_css["Actual"]).text.strip() if soup.select_one(selectores_css["Actual"]) else "No disponible",
+            "Anterior": soup.select_one(selectores_css["Anterior"]).text.strip() if soup.select_one(selectores_css["Anterior"]) else "No disponible",
+            "Esperado": soup.select_one(selectores_css["Esperado"]).text.strip() if soup.select_one(selectores_css["Esperado"]) else "No disponible"
+        }
+
+        datos.append(datos_evento)
+
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Error al obtener datos para {indicador}: {e}")
+
+# **Convertir a DataFrame**
+df_indicadores_economicos = pd.DataFrame(datos)
+
+# **Mostrar el DataFrame**
+print("📊 Indicadores Económicos obtenidos de MyFXBook:")
+print(df_indicadores_economicos)
+
+# POST INDICADORES ECONOMICOS
+
+import requests
+import datetime
+import pandas as pd
+import os  # Para manejar variables de entorno
+
+# **ID de WordPress para actualización de indicadores económicos**
+post_id_economia = "1045"  # ⚠️ Usa el ID correcto de WordPress
+
+# **URL de la API para actualizar el post**
+wordpress_url_economia = f"https://estrategiaelite.com/wp-json/wp/v2/posts/{post_id_economia}"
+
+# **Diseño de la tabla en HTML**
+def generar_tabla_html(df):
+    estilos = """
+    <style>
+        table {border-collapse: collapse; width: 100%; font-family: Arial;}
+        th, td {border: 1px solid #ddd; padding: 10px; text-align: center;}
+        th {background-color: #0073aa; color: white; font-weight: bold;}
+        tr:nth-child(even) {background-color: #f2f2f2;}
+        tr:hover {background-color: #ddd;}
+    </style>
+    """
+    if df.empty:
+        return "<p style='text-align:center; font-size:16px; font-weight:bold;'>No hay datos disponibles</p>"
+    return estilos + df.to_html(index=False, escape=False)
+
+# **Usamos el DataFrame generado previamente**
+post_data_economia = {
+    "title": f"Indicadores Económicos - Actualización {datetime.datetime.now().strftime('%Y-%m-%d')}",
+    "content": generar_tabla_html(df_indicadores_economicos)  # ✅ Usamos el DataFrame correcto
+}
+
+# **Ejecutar la solicitud PUT para actualizar el post en WordPress**
+response_economia = requests.put(
+    wordpress_url_economia,
+    json=post_data_economia,
+    auth=(os.getenv("WORDPRESS_USER"), os.getenv("WORDPRESS_PASSWORD"))  # 🔒 Seguridad en GitHub
+)
+
+# **Confirmación del éxito**
+if response_economia.status_code == 200:
+    print("✅ ¡Publicación de indicadores económicos actualizada exitosamente en WordPress!")
+else:
+    print(f"❌ Error al actualizar en WordPress: {response_economia.status_code}, {response_economia.text}")
+
 
 
 
