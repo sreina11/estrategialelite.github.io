@@ -472,6 +472,8 @@ if response_confluencias.status_code == 200:
 else:
     print(f"❌ Error al actualizar Confluencias: {response_confluencias.status_code}, {response_confluencias.text}")
 
+# Medias moviles 
+
 # MA 200 
 from tradingview_ta import TA_Handler, Interval
 import pandas as pd
@@ -723,6 +725,67 @@ print(df_confluencia_50_stoch)
 
 print("\n📊 Activos con confluencia MA 200 ±2% + Estocástico:")
 print(df_confluencia_200_stoch)
+
+# POST CONFLUENCIAS MEDIAS MOVILES Y OSCILADORES
+
+import requests
+import datetime
+import pandas as pd
+
+# 🔹 Reemplaza el ID con el que obtuviste en la publicación inicial
+post_id = "1005"  # ⚠️ Usa el ID correcto
+
+# 🔹 URL de la API para actualizar el post
+wordpress_url = f"https://estrategiaelite.com/wp-json/wp/v2/posts/{post_id}"
+
+# 🔹 Simulación de datos de confluencias (Ejemplo sin CSV)
+dataframes_confluencias = {
+    "MA 20 ±2% + RSI": pd.DataFrame({"Activo": ["BTCUSDT", "ETHUSDT"], "RSI_1D": [30, 75]}),
+    "MA 50 ±2% + RSI": pd.DataFrame({"Activo": ["BNBUSDT", "XRPUSDT"], "RSI_1D": [45, 80]}),
+}
+
+# 🔹 Función para aplicar colores al RSI y Estocástico
+def aplicar_colores(valor, tipo):
+    if pd.notna(valor):  # Evita errores con valores nulos
+        if tipo == "RSI" and valor <= 20:
+            return f'<span style="color: #009900; font-weight: bold;">{valor}</span>'  # Verde
+        elif tipo == "RSI" and valor >= 70:
+            return f'<span style="color: #FF0000; font-weight: bold;">{valor}</span>'  # Rojo
+    return str(valor)
+
+# 🔹 Aplicar colores a los valores de RSI
+contenido_html = ""
+for nombre, df in dataframes_confluencias.items():
+    df_coloreado = df.copy()
+    for col in ["RSI_1D"]:
+        df_coloreado[col] = df_coloreado[col].apply(lambda x: aplicar_colores(x, "RSI"))
+
+    # 🔹 Estilos de la tabla HTML
+    estilos = """
+    <style>
+        table {border-collapse: collapse; width: 100%; font-family: Arial;}
+        th, td {border: 1px solid #ddd; padding: 10px; text-align: center;}
+        th {background-color: #0073aa; color: white; font-weight: bold;}
+        tr:nth-child(even) {background-color: #f2f2f2;}
+        tr:hover {background-color: #ddd;}
+    </style>
+    """
+    contenido_html += f"<h5>{nombre}</h5>" + estilos + df_coloreado.to_html(index=False, escape=False)
+
+# 🔹 Datos de la actualización
+post_data = {
+    "title": f"Confluencias Técnicas - Actualización {datetime.datetime.now().strftime('%Y-%m-%d')}",
+    "content": contenido_html
+}
+
+# 🔹 Enviar solicitud PUT para actualizar el post en WordPress
+response = requests.put(wordpress_url, json=post_data, auth=("tu_usuario", "tu_contraseña"))
+
+if response.status_code == 200:
+    print("✅ ¡Publicación de Confluencias actualizada exitosamente en WordPress!")
+else:
+    print(f"❌ Error al actualizar: {response.status_code}, {response.text}")
+
 
 # BANDAS DE BOLLINGER
 from tradingview_ta import TA_Handler, Interval
