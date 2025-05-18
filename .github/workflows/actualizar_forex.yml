@@ -1,0 +1,27 @@
+name: Actualizar forex
+
+on:
+  workflow_dispatch:  # Permite ejecución manual en Actions
+  schedule:
+    - cron: '0 */8 * * *'  # Ejecuta cada 8 horas
+
+jobs:
+  update_post:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Configurar Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.12'
+
+      - name: Instalar Dependencias
+        run: pip install tradingview_ta pandas requests yfinance beautifulsoup4
+
+      - name: Ejecutar Script
+        env:
+          WORDPRESS_USER: ${{ secrets.WORDPRESS_USER }}
+          WORDPRESS_PASSWORD: ${{ secrets.WORDPRESS_PASSWORD }}
+        run: python main1.py
