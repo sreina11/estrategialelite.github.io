@@ -201,7 +201,7 @@ for col in temporalidades.keys():
 
 # **Mostrar datos antes del filtrado**
 print("📊 Datos antes del filtro:")
-display(df_stoch)
+print(df_stoch)
 
 # **Filtrar activos con Estocástico sobrecompra (≥80) o sobreventa (≤20)**
 df_filtrado = df_stoch[
@@ -213,7 +213,7 @@ df_filtrado = df_stoch[
 
 # **Mostrar datos después del filtrado**
 print("\n📊 Activos con Estocástico en zona extrema (≤20 o ≥80):")
-display(df_filtrado if not df_filtrado.empty else "No hay activos en zona extrema.")
+print(df_filtrado if not df_filtrado.empty else "No hay activos en zona extrema.")
 
 #POST ESTOCASTICO FOREX
 # ⚠️ Instalar librerías necesarias
