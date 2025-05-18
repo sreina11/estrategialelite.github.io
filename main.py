@@ -1431,8 +1431,6 @@ else:
     print(f"❌ Error al actualizar RSI: {response.status_code}, {response.text}")
 
 # ESTOCASTICO FOREX
-# ⚠️ Instalar librerías necesarias en Google Colab
-!pip install tradingview_ta pandas
 
 # **Importar librerías**
 from tradingview_ta import TA_Handler, Interval
