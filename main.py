@@ -786,362 +786,178 @@ if response.status_code == 200:
 else:
     print(f"❌ Error al actualizar: {response.status_code}, {response.text}")
 
-
 # BANDAS DE BOLLINGER
+
+import requests
 from tradingview_ta import TA_Handler, Interval
 import pandas as pd
+import datetime
+import os
 
-# **Lista de activos con su mercado en TradingView**
+# ----------- Configuración de activos y temporalidades -----------
 assets = {
-    "SPY": "AMEX", "DJI": "DJI", "NDX": "NASDAQ", "MSFT": "NASDAQ", "GOOGL": "NASDAQ",
+    "NDX": "NASDAQ", "MSFT": "NASDAQ", "GOOGL": "NASDAQ",
     "META": "NASDAQ", "IBM": "NYSE", "V": "NYSE", "JPM": "NYSE", "MA": "NYSE",
     "AAPL": "NASDAQ", "AMD": "NASDAQ", "NVDA": "NASDAQ", "AMZN": "NASDAQ", "KO": "NYSE",
     "NKE": "NYSE", "DIS": "NYSE", "MCD": "NYSE", "NFLX": "NASDAQ", "CAT": "NYSE",
     "TSLA": "NASDAQ", "CVX": "NYSE", "XOM": "NYSE", "JNJ": "NYSE"
 }
 
-# **Intervalos de TradingView**
-intervals_bb = {
+temporalidades = {
     "Diario": Interval.INTERVAL_1_DAY,
     "Semanal": Interval.INTERVAL_1_WEEK,
     "Mensual": Interval.INTERVAL_1_MONTH
 }
 
-# **Diccionario para almacenar los datos**
-data_bb = []
-filtered_bb = []
+# ----------- Función de análisis por activo y temporalidad -----------
 
-# **Obtención de datos desde TradingView**
-for asset, market in assets.items():
-    asset_data = {"Activo": asset}
+def analizar_ticker(ticker, exchange):
+    datos_rsi = {}
+    datos_stoch = {}
+    precios = {}
 
-    for period_name, interval in intervals_bb.items():
+    for nombre, intervalo in temporalidades.items():
         try:
-            handler = TA_Handler(symbol=asset, exchange=market, screener="america", interval=interval)
+            handler = TA_Handler(symbol=ticker, exchange=exchange, screener="america", interval=intervalo)
             analysis = handler.get_analysis()
-
-            price = analysis.indicators.get("close", None)  # Precio actual
-            bb_upper = analysis.indicators.get("BB.upper", None)  # Banda Bollinger superior
-            bb_lower = analysis.indicators.get("BB.lower", None)  # Banda Bollinger inferior
-
-            asset_data[f"Precio_{period_name}"] = price
-            asset_data[f"BB_Upper_{period_name}"] = bb_upper
-            asset_data[f"BB_Lower_{period_name}"] = bb_lower
-
-            # **Filtrar activos que cumplan la condición**
-            if price and bb_upper and bb_lower:
-                if price >= bb_upper or price <= bb_lower:
-                    filtered_bb.append(asset_data)
-
+            precios[nombre] = {
+                "Precio actual": round(analysis.indicators["close"], 2),
+                "BB_UP": round(analysis.indicators["BB.upper"], 2),
+                "BB_Low": round(analysis.indicators["BB.lower"], 2)
+            }
+            datos_rsi[nombre] = round(analysis.indicators["RSI"], 2)
+            datos_stoch[nombre] = round(analysis.indicators["Stoch.K"], 2)
         except Exception as e:
-            print(f"Error obteniendo datos para {asset} ({period_name}): {e}")
+            print(f"Error en {ticker} - {nombre}: {e}")
+            precios[nombre] = {"Precio actual": None, "BB_UP": None, "BB_Low": None}
+            datos_rsi[nombre] = None
+            datos_stoch[nombre] = None
 
-    data_bb.append(asset_data)
+    try:
+        handler_4h = TA_Handler(symbol=ticker, exchange=exchange, screener="america", interval=Interval.INTERVAL_4_HOURS)
+        analysis_4h = handler_4h.get_analysis()
+        datos_rsi["4H"] = round(analysis_4h.indicators["RSI"], 2)
+        datos_stoch["4H"] = round(analysis_4h.indicators["Stoch.K"], 2)
+    except:
+        datos_rsi["4H"] = None
+        datos_stoch["4H"] = None
 
-# **Conversión a DataFrame**
-df_bb = pd.DataFrame(data_bb)
-df_filtrado_bb = pd.DataFrame(filtered_bb)  # ✅ Renombrado para evitar conflictos
+    return precios, datos_rsi, datos_stoch
 
-# **Mostrar todos los datos**
-print("📊 Datos completos de Bandas de Bollinger:")
-print(df_bb)
+# ----------- Recolectar datos por indicador -----------
 
-# **Mostrar activos fuera de las bandas de Bollinger**
-print("\n✅ Activos fuera de las bandas de Bollinger:")
-print(df_filtrado_bb)
+bb_rsi = {"Diario": [], "Semanal": [], "Mensual": []}
+bb_stoch = {"Diario": [], "Semanal": [], "Mensual": []}
 
- # POST BANDAS DE BOLLINGER
-import requests
-import datetime
-import pandas as pd
-import os  # Para manejar variables de entorno
+for ticker, exchange in assets.items():
+    precios, rsi, stoch = analizar_ticker(ticker, exchange)
 
-# **ID de WordPress para actualización de Bandas de Bollinger**
-post_id_bb = "1020"  # ⚠️ Usa el ID correcto de WordPress
+    for timeframe in temporalidades.keys():
+        # Confluencias BB + RSI
+        p = precios[timeframe]
+        if (p["Precio actual"] >= p["BB_UP"] or p["Precio actual"] <= p["BB_Low"]) and (
+            rsi["4H"] >= 70 or rsi["4H"] <= 30 or rsi[timeframe] >= 70 or rsi[timeframe] <= 30
+        ):
+            bb_rsi[timeframe].append({
+                "Ticker": ticker,
+                "Precio actual": p["Precio actual"],
+                "Precio BB_UP": p["BB_UP"],
+                "Precio BB_Low": p["BB_Low"],
+                "RSI_4H": rsi["4H"],
+                "RSI Diario": rsi.get("Diario"),
+                "RSI Semanal": rsi.get("Semanal"),
+                "RSI Mensual": rsi.get("Mensual")
+            })
 
-# **URL de la API para actualizar el post**
-wordpress_url_bb = f"https://estrategiaelite.com/wp-json/wp/v2/posts/{post_id_bb}"
+        # Confluencias BB + Estocástico
+        if (p["Precio actual"] >= p["BB_UP"] or p["Precio actual"] <= p["BB_Low"]) and (
+            stoch["4H"] >= 80 or stoch["4H"] <= 20 or stoch[timeframe] >= 80 or stoch[timeframe] <= 20
+        ):
+            bb_stoch[timeframe].append({
+                "Ticker": ticker,
+                "Precio actual": p["Precio actual"],
+                "Precio BB_UP": p["BB_UP"],
+                "Precio BB_Low": p["BB_Low"],
+                "STOCH_4H": stoch["4H"],
+                "STOCH Diario": stoch.get("Diario"),
+                "STOCH Semanal": stoch.get("Semanal"),
+                "STOCH Mensual": stoch.get("Mensual")
+            })
 
-# **Filtrar los activos fuera de las bandas de Bollinger**
-df_filtrado_bb = df_bb[
-    (df_bb["Precio_Diario"] >= df_bb["BB_Upper_Diario"]) |
-    (df_bb["Precio_Diario"] <= df_bb["BB_Lower_Diario"]) |
-    (df_bb["Precio_Semanal"] >= df_bb["BB_Upper_Semanal"]) |
-    (df_bb["Precio_Semanal"] <= df_bb["BB_Lower_Semanal"]) |
-    (df_bb["Precio_Mensual"] >= df_bb["BB_Upper_Mensual"]) |
-    (df_bb["Precio_Mensual"] <= df_bb["BB_Lower_Mensual"])
-]
+# ----------- Funciones para dar formato HTML -----------
 
-# **Eliminar columnas innecesarias**
-df_coloreado_bb = df_filtrado_bb.drop(columns=["Precio_Semanal", "Precio_Mensual"]).copy()
-
-# **Función para aplicar colores**
-def aplicar_colores(valor, tipo, umbral):
-    if pd.notna(valor):
-        if tipo == "superior" and valor >= umbral:
-            return f'<span style="color: #FF0000; font-weight: bold;">{valor}</span>'  # Rojo
-        elif tipo == "inferior" and valor <= umbral:
-            return f'<span style="color: #009900; font-weight: bold;">{valor}</span>'  # Verde
+def colorear(valor, tipo):
+    if pd.isna(valor): return ""
+    valor = round(valor, 2)
+    if tipo == "RSI":
+        if valor >= 70:
+            return f'<span style="color:red; font-weight:bold;">{valor}</span>'
+        elif valor <= 30:
+            return f'<span style="color:green; font-weight:bold;">{valor}</span>'
+    elif tipo == "STOCH":
+        if valor >= 80:
+            return f'<span style="color:red; font-weight:bold;">{valor}</span>'
+        elif valor <= 20:
+            return f'<span style="color:green; font-weight:bold;">{valor}</span>'
     return str(valor)
 
-# **Aplicar colores al DataFrame**
-for col in ["BB_Upper_Diario", "BB_Upper_Semanal", "BB_Upper_Mensual"]:
-    df_coloreado_bb[col] = df_coloreado_bb.apply(lambda x: aplicar_colores(x["Precio_Diario"], "superior", x[col]), axis=1)
-for col in ["BB_Lower_Diario", "BB_Lower_Semanal", "BB_Lower_Mensual"]:
-    df_coloreado_bb[col] = df_coloreado_bb.apply(lambda x: aplicar_colores(x["Precio_Diario"], "inferior", x[col]), axis=1)
+def generar_tabla(datos, columnas, tipo="RSI"):
+    if not datos:
+        return "<p>No hay confluencias.</p>"
 
-# **Modificar nombres de columnas con saltos de línea**
-columnas_modificadas_bb = {
-    "Precio_Diario": "Precio<br>Diario",
-    "BB_Upper_Diario": "Banda<br>Superior<br>Diaria",
-    "BB_Lower_Diario": "Banda<br>Inferior<br>Diaria",
-    "BB_Upper_Semanal": "Banda<br>Superior<br>Semanal",
-    "BB_Lower_Semanal": "Banda<br>Inferior<br>Semanal",
-    "BB_Upper_Mensual": "Banda<br>Superior<br>Mensual",
-    "BB_Lower_Mensual": "Banda<br>Inferior<br>Mensual",
-}
+    df = pd.DataFrame(datos)
+    for col in df.columns:
+        if "RSI" in col:
+            df[col] = df[col].apply(lambda x: colorear(x, "RSI"))
+        elif "STOCH" in col:
+            df[col] = df[col].apply(lambda x: colorear(x, "STOCH"))
 
-df_coloreado_bb.rename(columns=columnas_modificadas_bb, inplace=True)
-
-# **Diseño de la tabla en HTML**
-def generar_tabla_html(df):
     estilos = """
     <style>
-        table {border-collapse: collapse; width: 100%; font-family: Arial;}
-        th, td {border: 1px solid #ddd; padding: 10px; text-align: center;}
-        th {background-color: #0073aa; color: white; font-weight: bold;}
+        table {border-collapse: collapse; width: 100%; font-family: Arial; font-size: 14px;}
+        th {border: 1px solid #ccc; padding: 6px; background-color: #004080; color: white;}
+        td {border: 1px solid #ccc; padding: 6px; text-align: center;}
         tr:nth-child(even) {background-color: #f2f2f2;}
-        tr:hover {background-color: #ddd;}
     </style>
     """
-    if df.empty:
-        return "<p style='text-align:center; font-size:16px; font-weight:bold;'>No hay activos fuera de las bandas de Bollinger</p>"
-    return estilos + df.to_html(index=False, escape=False)
+    return estilos + df.to_html(index=False, columns=columnas, escape=False)
 
-# **Datos de la actualización**
-post_data_bb = {
-    "title": f"Activos fuera de las Bandas de Bollinger - Actualización {datetime.datetime.now().strftime('%Y-%m-%d')}",
-    "content": generar_tabla_html(df_coloreado_bb)
+# ----------- Crear contenido HTML -----------
+
+contenido = "<h4>Bandas de bollinger Y RSI</h4><br>"
+for tf in ["Diario", "Semanal", "Mensual"]:
+    contenido += f"<h5 style='margin-left:20px;'>{tf}</h5>"
+    columnas = ["Ticker", "Precio actual", "Precio BB_UP", "Precio BB_Low",
+                "RSI_4H", "RSI Diario", "RSI Semanal", "RSI Mensual"]
+    contenido += generar_tabla(bb_rsi[tf], columnas, "RSI")
+
+contenido += "<h4>Bandas de bollinger y Estocastico</h4><br>"
+for tf in ["Diario", "Semanal", "Mensual"]:
+    contenido += f"<h5 style='margin-left:20px;'>{tf}</h5>"
+    columnas = ["Ticker", "Precio actual", "Precio BB_UP", "Precio BB_Low",
+                "STOCH_4H", "STOCH Diario", "STOCH Semanal", "STOCH Mensual"]
+    contenido += generar_tabla(bb_stoch[tf], columnas, "STOCH")
+
+# ----------- Publicar en WordPress -----------
+
+post_id = "1028"
+url = f"https://estrategiaelite.com/wp-json/wp/v2/posts/{post_id}"
+
+payload = {
+    "title": f"Confluencias de Osciladores y Bandas de Bollinger - {datetime.datetime.now().strftime('%Y-%m-%d')}",
+    "content": contenido
 }
 
-# **Ejecutar la solicitud PUT para actualizar el post en WordPress**
-response_bb = requests.put(
-    wordpress_url_bb,
-    json=post_data_bb,
-    auth=(os.getenv("WORDPRESS_USER"), os.getenv("WORDPRESS_PASSWORD"))  # 🔒 Seguridad en GitHub
+response = requests.put(
+    url,
+    json=payload,
+    auth=(os.getenv("WORDPRESS_USER"), os.getenv("WORDPRESS_PASSWORD"))
 )
 
-# **Confirmación del éxito**
-if response_bb.status_code == 200:
-    print("✅ ¡Publicación de activos fuera de Bollinger actualizada exitosamente en WordPress!")
+if response.status_code == 200:
+    print("✅ Publicación actualizada correctamente.")
 else:
-    print(f"❌ Error al actualizar en WordPress: {response_bb.status_code}, {response_bb.text}")
-
-# confluencias bandas de bollinger Y OSCILADORES
-import pandas as pd
-
-# **Renombrar "Activo" a "Ticker" en las Bandas de Bollinger**
-df_bb.rename(columns={"Activo": "Ticker"}, inplace=True)
-
-# **Verificar que las columnas necesarias existen antes de fusionar**
-columnas_necesarias = ["Precio_Diario", "BB_Upper_Diario", "BB_Lower_Diario", "RSI_1D", "Stoch_1D"]
-
-# **Fusionar DataFrames asegurando que las claves coincidan**
-df_combinado = df_bb.merge(df_rsi, on="Ticker", how="inner").merge(df_stoch, on="Ticker", how="inner")
-
-# **Confirmar que todas las columnas necesarias están en df_combinado**
-columnas_faltantes = [col for col in columnas_necesarias if col not in df_combinado.columns]
-
-if columnas_faltantes:
-    print(f"⚠️ Faltan estas columnas en el DataFrame fusionado: {columnas_faltantes}")
-else:
-    # **Aplicar filtros de confluencia**
-    df_filtrado_confluencias = df_combinado[
-        (
-            (df_combinado["Precio_Diario"] >= df_combinado["BB_Upper_Diario"]) & 
-            ((df_combinado["RSI_1D"] >= 70) | (df_combinado["Stoch_1D"] >= 80))
-        ) |
-        (
-            (df_combinado["Precio_Diario"] <= df_combinado["BB_Lower_Diario"]) & 
-            ((df_combinado["RSI_1D"] <= 30) | (df_combinado["Stoch_1D"] <= 20))
-        )
-    ].copy()
-
-    # **Modificar nombres de columnas para formato HTML**
-    columnas_modificadas_confluencias = {
-        "Ticker": "Activo",
-        "Precio_Diario": "Precio<br>Diario",
-        "BB_Upper_Diario": "Banda<br>Superior<br>Diaria",
-        "BB_Lower_Diario": "Banda<br>Inferior<br>Diaria",
-        "RSI_1D": "RSI<br>Diario",
-        "Stoch_1D": "Estocástico<br>Diario",
-    }
-
-    df_filtrado_confluencias.rename(columns=columnas_modificadas_confluencias, inplace=True)
-
-    # **Aplicar colores a RSI y Estocástico**
-    def aplicar_colores(valor, tipo):
-        if pd.notna(valor):
-            if tipo == "RSI" and valor >= 70:
-                return f'<span style="color: #FF0000; font-weight: bold;">{valor}</span>'  # Rojo
-            elif tipo == "RSI" and valor <= 30:
-                return f'<span style="color: #009900; font-weight: bold;">{valor}</span>'  # Verde
-            elif tipo == "Stoch" and valor >= 80:
-                return f'<span style="color: #FF0000; font-weight: bold;">{valor}</span>'  # Rojo
-            elif tipo == "Stoch" and valor <= 20:
-                return f'<span style="color: #009900; font-weight: bold;">{valor}</span>'  # Verde
-        return str(valor)
-
-    for col in ["RSI<br>Diario"]:
-        df_filtrado_confluencias[col] = df_filtrado_confluencias[col].apply(lambda x: aplicar_colores(x, "RSI"))
-    for col in ["Estocástico<br>Diario"]:
-        df_filtrado_confluencias[col] = df_filtrado_confluencias[col].apply(lambda x: aplicar_colores(x, "Stoch"))
-
-    # **Mostrar el DataFrame**
-    print("✅ Activos con confluencias entre Bandas de Bollinger, RSI y Estocástico:")
-    print(df_filtrado_confluencias)
-# Actualizar POst Bandas de BB y osciladores 
-import pandas as pd
-
-# **Renombrar "Activo" a "Ticker" en las Bandas de Bollinger**
-df_bb.rename(columns={"Activo": "Ticker"}, inplace=True)
-
-# **Verificar que las columnas necesarias existen antes de fusionar**
-columnas_necesarias = ["Precio_Diario", "BB_Upper_Diario", "BB_Lower_Diario", "RSI_1D", "Stoch_1D"]
-
-# **Fusionar DataFrames asegurando que las claves coincidan**
-df_combinado = df_bb.merge(df_rsi, on="Ticker", how="inner").merge(df_stoch, on="Ticker", how="inner")
-
-# **Confirmar que todas las columnas necesarias están en df_combinado**
-columnas_faltantes = [col for col in columnas_necesarias if col not in df_combinado.columns]
-
-if columnas_faltantes:
-    print(f"⚠️ Faltan estas columnas en el DataFrame fusionado: {columnas_faltantes}")
-else:
-    # **Aplicar filtros de confluencia**
-    df_filtrado_confluencias = df_combinado[
-        (
-            (df_combinado["Precio_Diario"] >= df_combinado["BB_Upper_Diario"]) & 
-            ((df_combinado["RSI_1D"] >= 70) | (df_combinado["Stoch_1D"] >= 80))
-        ) |
-        (
-            (df_combinado["Precio_Diario"] <= df_combinado["BB_Lower_Diario"]) & 
-            ((df_combinado["RSI_1D"] <= 30) | (df_combinado["Stoch_1D"] <= 20))
-        )
-    ].copy()
-
-    # **Modificar nombres de columnas para formato HTML**
-    columnas_modificadas_confluencias = {
-        "Ticker": "Activo",
-        "Precio_Diario": "Precio<br>Diario",
-        "BB_Upper_Diario": "Banda<br>Superior<br>Diaria",
-        "BB_Lower_Diario": "Banda<br>Inferior<br>Diaria",
-        "RSI_1D": "RSI<br>Diario",
-        "Stoch_1D": "Estocástico<br>Diario",
-    }
-
-    df_filtrado_confluencias.rename(columns=columnas_modificadas_confluencias, inplace=True)
-
-    # **Aplicar colores a RSI y Estocástico**
-    def aplicar_colores(valor, tipo):
-        if pd.notna(valor):
-            if tipo == "RSI" and valor >= 70:
-                return f'<span style="color: #FF0000; font-weight: bold;">{valor}</span>'  # Rojo
-            elif tipo == "RSI" and valor <= 30:
-                return f'<span style="color: #009900; font-weight: bold;">{valor}</span>'  # Verde
-            elif tipo == "Stoch" and valor >= 80:
-                return f'<span style="color: #FF0000; font-weight: bold;">{valor}</span>'  # Rojo
-            elif tipo == "Stoch" and valor <= 20:
-                return f'<span style="color: #009900; font-weight: bold;">{valor}</span>'  # Verde
-        return str(valor)
-
-    for col in ["RSI<br>Diario"]:
-        df_filtrado_confluencias[col] = df_filtrado_confluencias[col].apply(lambda x: aplicar_colores(x, "RSI"))
-    for col in ["Estocástico<br>Diario"]:
-        df_filtrado_confluencias[col] = df_filtrado_confluencias[col].apply(lambda x: aplicar_colores(x, "Stoch"))
-
-    # **Mostrar el DataFrame**
-    print("✅ Activos con confluencias entre Bandas de Bollinger, RSI y Estocástico:")
-    print(df_filtrado_confluencias)
-# Publicacion confluencias BB y estoc
-import requests
-import datetime
-import pandas as pd
-import os  # Para manejar variables de entorno
-
-# **ID de WordPress para actualización de confluencias**
-post_id_confluencias = "1028"  # ⚠️ Usa el ID correcto de WordPress
-
-# **URL de la API para actualizar el post**
-wordpress_url_confluencias = f"https://estrategiaelite.com/wp-json/wp/v2/posts/{post_id_confluencias}"
-
-# **Eliminar columnas innecesarias solo si existen**
-columnas_a_eliminar = ["Precio_Semanal", "Precio_Mensual"]
-df_coloreado_confluencias = df_filtrado_confluencias.drop(
-    columns=[col for col in columnas_a_eliminar if col in df_filtrado_confluencias.columns]
-).copy()
-
-# **Redondear precios y Bandas de Bollinger a 2 decimales**
-columnas_a_redondear = [
-    "Precio<br>Diario", "Banda<br>Superior<br>Diaria", "Banda<br>Inferior<br>Diaria",
-    "BB_Upper_Semanal", "BB_Lower_Semanal", "BB_Upper_Mensual", "BB_Lower_Mensual"
-]
-for col in columnas_a_redondear:
-    if col in df_coloreado_confluencias.columns:
-        df_coloreado_confluencias[col] = df_coloreado_confluencias[col].astype(float).round(2)
-
-# **Modificar nombres de columnas para formato HTML**
-columnas_modificadas_confluencias = {
-    "Precio<br>Diario": "Precio<br>D",
-    "Banda<br>Superior<br>Diaria": "BB Up<br>D",
-    "Banda<br>Inferior<br>Diaria": "BB Low<br>D",
-    "BB_Upper_Semanal": "BB Up<br>W",
-    "BB_Lower_Semanal": "BB Low<br>W",
-    "BB_Upper_Mensual": "BB Up<br>M",
-    "BB_Lower_Mensual": "BB Low<br>M",
-    "RSI_1D": "RSI<br>D",
-    "RSI_1W": "RSI<br>W",
-    "RSI_1M": "RSI<br>M",
-    "Stoch_1D": "Stoch<br>D",
-    "Stoch_1W": "Stoch<br>W",
-    "Stoch_1M": "Stoch<br>M",
-}
-
-df_coloreado_confluencias.rename(columns=columnas_modificadas_confluencias, inplace=True)
-
-# **Diseño de la tabla en HTML**
-def generar_tabla_html(df):
-    estilos = """
-    <style>
-        table {border-collapse: collapse; width: 100%; font-family: Arial;}
-        th, td {border: 1px solid #ddd; padding: 10px; text-align: center;}
-        th {background-color: #0073aa; color: white; font-weight: bold;}
-        tr:nth-child(even) {background-color: #f2f2f2;}
-        tr:hover {background-color: #ddd;}
-    </style>
-    """
-    if df.empty:
-        return "<p style='text-align:center; font-size:16px; font-weight:bold;'>No hay confluencias</p>"
-    return estilos + df.to_html(index=False, escape=False)
-
-# **Datos de la actualización**
-post_data_confluencias = {
-    "title": f"Confluencias entre BB, RSI y Stoch - Actualización {datetime.datetime.now().strftime('%Y-%m-%d')}",
-    "content": generar_tabla_html(df_coloreado_confluencias)
-}
-
-# **Ejecutar la solicitud PUT para actualizar el post en WordPress**
-response_confluencias = requests.put(
-    wordpress_url_confluencias,
-    json=post_data_confluencias,
-    auth=(os.getenv("WORDPRESS_USER"), os.getenv("WORDPRESS_PASSWORD"))  # 🔒 Seguridad en GitHub
-)
-
-# **Confirmación del éxito**
-if response_confluencias.status_code == 200:
-    print("✅ ¡Publicación de confluencias actualizada exitosamente en WordPress!")
-else:
-    print(f"❌ Error al actualizar en WordPress: {response_confluencias.status_code}, {response_confluencias.text}")
+    print(f"❌ Error al actualizar: {response.status_code} - {response.text}")
 
 # INDICADORES ECONOMICOS
 
