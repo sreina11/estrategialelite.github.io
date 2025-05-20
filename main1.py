@@ -427,3 +427,160 @@ if response.status_code == 200:
     print("✅ ¡Publicación de confluencias actualizada exitosamente en WordPress!")
 else:
     print(f"❌ Error al actualizar en WordPress: {response.status_code}, {response.text}")
+
+# CONFLUENCIAS MEDIAS MOVILES Y OSCILADORES 
+import requests
+import os
+import datetime
+import pandas as pd
+from tradingview_ta import TA_Handler, Interval
+
+# 📌 Datos de WordPress
+post_id = "1198"
+wordpress_url = f"https://estrategiaelite.com/wp-json/wp/v2/posts/{post_id}"
+
+def aplicar_formato(valor, decimales):
+    return round(valor, decimales) if valor is not None else None
+
+# 📊 Activos y Exchanges
+activos = {
+    "USDJPY": "FX", "USDCAD": "FX", "USDCHF": "FX", "GBPUSD": "FX",
+    "GBPJPY": "FX", "EURAUD": "FX", "EURUSD": "FX", "EURJPY": "FX",
+    "EURGBP": "FX", "AUDUSD": "FX", "AUDJPY": "FX", "NZDUSD": "FX",
+    "CHFJPY": "FX", "CADJPY": "FX", "CADCHF": "FX", "XAUUSD": "OANDA",
+    "DXY": "TVC"
+}
+
+# 🕒 Intervalos
+intervalos_ma = {
+    "Semanal": Interval.INTERVAL_1_WEEK,
+    "Mensual": Interval.INTERVAL_1_MONTH
+}
+intervalos_osciladores = {
+    "RSI_4H": Interval.INTERVAL_4_HOURS, "RSI_1D": Interval.INTERVAL_1_DAY,
+    "RSI_1W": Interval.INTERVAL_1_WEEK, "RSI_1M": Interval.INTERVAL_1_MONTH,
+    "Stoch_4H": Interval.INTERVAL_4_HOURS, "Stoch_1D": Interval.INTERVAL_1_DAY,
+    "Stoch_1W": Interval.INTERVAL_1_WEEK, "Stoch_1M": Interval.INTERVAL_1_MONTH
+}
+
+# 📊 Obtener datos de TradingView
+confluencias = []
+
+for activo, exchange in activos.items():
+    fila = {"Ticker": activo}
+    try:
+        # Obtener osciladores
+        for nombre, intervalo in intervalos_osciladores.items():
+            handler = TA_Handler(symbol=activo, exchange=exchange,
+                                 screener="forex" if exchange == "FX" else "cfd",
+                                 interval=intervalo)
+            analisis = handler.get_analysis()
+            if "RSI" in nombre:
+                fila[nombre] = aplicar_formato(analisis.indicators.get("RSI"), 2)
+            elif "Stoch" in nombre:
+                fila[nombre] = aplicar_formato(analisis.indicators.get("Stoch.K"), 2)
+
+        # Obtener precios y medias móviles
+        for periodo, intervalo in intervalos_ma.items():
+            handler = TA_Handler(symbol=activo, exchange=exchange,
+                                 screener="forex" if exchange == "FX" else "cfd",
+                                 interval=intervalo)
+            analisis = handler.get_analysis()
+
+            precio = aplicar_formato(analisis.indicators.get("close"), 4)
+            ma200 = aplicar_formato(analisis.indicators.get("SMA200"), 4)
+            ma50 = aplicar_formato(analisis.indicators.get("SMA50"), 4)
+            ma20 = aplicar_formato(analisis.indicators.get("SMA20"), 4)
+
+            if precio:
+                fila["Precio"] = precio
+                for ma, nombre_ma in [(ma200, "MA200"), (ma50, "MA50"), (ma20, "MA20")]:
+                    fila[f"{nombre_ma}_{periodo}"] = ma
+                    if ma:
+                        rango = aplicar_formato(((precio - ma) / ma) * 100, 1)
+                        fila[f"Rango_{nombre_ma}_{periodo}"] = rango
+
+    except Exception as e:
+        print(f"⚠️ Error con {activo}: {e}")
+        continue
+
+    confluencias.append(fila)
+
+# Crear DataFrame
+df = pd.DataFrame(confluencias)
+
+# 🎯 Filtrar confluencias técnicas
+# Precio dentro de ±0.5% de alguna MA (semanal o mensual)
+cond_ma = df[[col for col in df.columns if col.startswith("Rango_")]].apply(
+    lambda row: any(-0.5 <= val <= 0.5 for val in row if pd.notnull(val)), axis=1
+)
+
+# RSI extremos
+cond_rsi = df[[col for col in df.columns if col.startswith("RSI")]].apply(
+    lambda row: any((val <= 30 or val >= 70) for val in row if pd.notnull(val)), axis=1
+)
+
+# Stoch extremos
+cond_stoch = df[[col for col in df.columns if col.startswith("Stoch")]].apply(
+    lambda row: any((val <= 20 or val >= 80) for val in row if pd.notnull(val)), axis=1
+)
+
+# Filtrar activos que cumplan confluencias
+df_filtrado = df[(cond_ma) & (cond_rsi | cond_stoch)].copy()
+
+# 🧱 Generar HTML organizado
+def generar_tabla_html(df):
+    estructura = "<h2>Confluencias MA + Osciladores</h2>"
+
+    for ma_tipo in ["MA200", "MA50", "MA20"]:
+        for periodo in ["Semanal", "Mensual"]:
+            for oscilador in ["RSI", "Stoch"]:
+                titulo = f"<h3>{ma_tipo} {periodo} ±0.5% + {oscilador}</h3>"
+                columnas = ["Ticker", "Precio", f"{ma_tipo}_{periodo}", f"Rango_{ma_tipo}_{periodo}"]
+
+                if oscilador == "RSI":
+                    columnas += [c for c in df.columns if c.startswith("RSI")]
+                elif oscilador == "Stoch":
+                    columnas += [c for c in df.columns if c.startswith("Stoch")]
+
+                # Filtrar filas con valores válidos para ese MA y oscilador
+                subset_df = df[(df[f"Rango_{ma_tipo}_{periodo}"].between(-0.5, 0.5)) & 
+                               df[columnas].notnull().all(axis=1)].copy()
+
+                # Filtrar por oscilador extremo
+                if oscilador == "RSI":
+                    subset_df = subset_df[
+                        subset_df[[c for c in df.columns if c.startswith("RSI")]].apply(
+                            lambda row: any((val <= 30 or val >= 70) for val in row if pd.notnull(val)), axis=1)
+                    ]
+                else:
+                    subset_df = subset_df[
+                        subset_df[[c for c in df.columns if c.startswith("Stoch")]].apply(
+                            lambda row: any((val <= 20 or val >= 80) for val in row if pd.notnull(val)), axis=1)
+                    ]
+
+                if subset_df.empty:
+                    estructura += titulo + "<p>No hay confluencias</p>"
+                else:
+                    estructura += titulo + subset_df[columnas].to_html(index=False, escape=False)
+
+    return estructura
+
+# 📝 Publicar en WordPress
+post_data = {
+    "title": f"Confluencias MA + Osciladores - Actualización {datetime.datetime.now().strftime('%Y-%m-%d')}",
+    "content": generar_tabla_html(df_filtrado)
+}
+
+response = requests.put(
+    wordpress_url,
+    json=post_data,
+    auth=(os.getenv("WORDPRESS_USER"), os.getenv("WORDPRESS_PASSWORD"))
+)
+
+# ✅ Resultado
+if response.status_code == 200:
+    print("✅ ¡Publicación de confluencias actualizada exitosamente en WordPress!")
+else:
+    print(f"❌ Error al actualizar confluencias: {response.status_code}, {response.text}")
+
