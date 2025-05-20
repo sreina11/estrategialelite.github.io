@@ -279,34 +279,22 @@ else:
 
 # CONFLUENCIAS BB RSI ESTOC
 
-# ⚠️ Instalar librerías necesarias
 import requests
 from tradingview_ta import TA_Handler, Interval
 import pandas as pd
+import datetime
+import os
 
-# **Lista de activos actualizada con DXY, Oro y Forex**
+# --- Activos ---
 activos = {
-    "USDJPY": "FX",
-    "USDCOP": "FX",
-    "USDCAD": "FX",
-    "USDCHF": "FX",
-    "GBPUSD": "FX",
-    "GBPJPY": "FX",
-    "EURAUD": "FX",
-    "EURUSD": "FX",
-    "EURJPY": "FX",
-    "EURGBP": "FX",
-    "AUDUSD": "FX",
-    "AUDJPY": "FX",
-    "NZDUSD": "FX",
-    "CHFJPY": "FX",
-    "CADJPY": "FX",
-    "CADCHF": "FX",
-    "XAUUSD": "OANDA",  # ✅ Oro con exchange correcto
-    "DXY": "TVC"        # ✅ Índice del dólar (US Dollar Index)
+    "USDJPY": "FX", "USDCOP": "FX", "USDCAD": "FX", "USDCHF": "FX",
+    "GBPUSD": "FX", "GBPJPY": "FX", "EURAUD": "FX", "EURUSD": "FX",
+    "EURJPY": "FX", "EURGBP": "FX", "AUDUSD": "FX", "AUDJPY": "FX",
+    "NZDUSD": "FX", "CHFJPY": "FX", "CADJPY": "FX", "CADCHF": "FX",
+    "XAUUSD": "OANDA", "DXY": "TVC"
 }
 
-# **Temporalidades**
+# --- Temporalidades ---
 temporalidades = {
     "4H": Interval.INTERVAL_4_HOURS,
     "Diario": Interval.INTERVAL_1_DAY,
@@ -314,14 +302,10 @@ temporalidades = {
     "Mensual": Interval.INTERVAL_1_MONTH
 }
 
-# **Diccionario para almacenar los datos**
-data = []
+# --- Recolectar datos ---
 filtered_data = []
-
-# **Obtener datos desde TradingView**
 for activo, mercado in activos.items():
     fila = {"Ticker": activo}
-
     for periodo_nombre, intervalo in temporalidades.items():
         try:
             handler = TA_Handler(symbol=activo, exchange=mercado, screener="forex" if mercado == "FX" else "cfd", interval=intervalo)
@@ -333,71 +317,47 @@ for activo, mercado in activos.items():
             rsi = analysis.indicators.get("RSI", None)
             stoch = analysis.indicators.get("Stoch.K", None)
 
+            # Redondear precio
+            if precio is not None:
+                if activo in ["XAUUSD", "DXY"]:
+                    precio = round(precio, 2)
+                else:
+                    precio = round(precio, 4)
+
             fila[f"Precio_{periodo_nombre}"] = precio
             fila[f"BB_Upper_{periodo_nombre}"] = bb_upper
             fila[f"BB_Lower_{periodo_nombre}"] = bb_lower
             fila[f"RSI_{periodo_nombre}"] = rsi
             fila[f"Stoch_{periodo_nombre}"] = stoch
 
-            # **Filtrar activos con confluencias**
-            if precio and bb_upper and bb_lower and (rsi is not None) and (stoch is not None):
+            if precio and bb_upper and bb_lower and rsi is not None and stoch is not None:
                 if (precio >= bb_upper or precio <= bb_lower) and (rsi >= 70 or rsi <= 30 or stoch >= 80 or stoch <= 20):
                     filtered_data.append(fila)
 
         except Exception as e:
             print(f"Error obteniendo datos para {activo} ({periodo_nombre}): {e}")
 
-    data.append(fila)
+df = pd.DataFrame(filtered_data)
 
-# **Crear DataFrame**
-df_confluencias = pd.DataFrame(filtered_data)
+# ------------------ FUNCIONES ------------------
 
-# **Mostrar activos con confluencias en Bandas de Bollinger, RSI y Estocástico**
-print("\n📊 Activos con confluencias (fuera de Bandas de Bollinger y RSI/Stoch en sobrecompra o sobreventa):")
-print(df_confluencias if not df_confluencias.empty else "No hay activos con confluencias.")
-
-# POST CONFLUENCIAS BANDAS DE BOLLINER RSI ESTOC
-
-# ⚠️ Instalar librerías necesarias
-import requests
-import pandas as pd
-import datetime
-import os  # Para manejar credenciales de WordPress desde secretos
-
-# **Post ID del post ya creado**
-post_id = "1151"
-
-# **URL de la API para actualizar el post**
-wordpress_url = f"https://estrategiaelite.com/wp-json/wp/v2/posts/{post_id}"
-
-# **Función para aplicar colores a los indicadores**
-def aplicar_colores(valor, indicador):
-    """Aplica colores y negrita basados en el valor de RSI o Stoch.K."""
-    if pd.notna(valor):  # Evita errores con valores nulos
-        if indicador == "RSI":
+def aplicar_color(valor, tipo):
+    if pd.notna(valor):
+        valor = round(valor, 2)
+        if tipo == "RSI":
             if valor >= 70:
-                return f'<span style="color: red; font-weight: bold;">{valor}</span>'  # RSI sobrecompra
+                return f'<span style="color:red; font-weight:bold;">{valor}</span>'
             elif valor <= 30:
-                return f'<span style="color: green; font-weight: bold;">{valor}</span>'  # RSI sobreventa
-        elif indicador == "Stoch":
+                return f'<span style="color:green; font-weight:bold;">{valor}</span>'
+        elif tipo == "Stoch":
             if valor >= 80:
-                return f'<span style="color: red; font-weight: bold;">{valor}</span>'  # Estocástico sobrecompra
+                return f'<span style="color:red; font-weight:bold;">{valor}</span>'
             elif valor <= 20:
-                return f'<span style="color: green; font-weight: bold;">{valor}</span>'  # Estocástico sobreventa
-    return f'<span style="font-weight: bold;">{valor}</span>'  # Negrita sin color
+                return f'<span style="color:green; font-weight:bold;">{valor}</span>'
+        return f'<span style="font-weight:bold;">{valor}</span>'
+    return ""
 
-# ✅ **Tomar el DataFrame original (`df_confluencias`) sin modificaciones**
-df_coloreado = df_confluencias.copy()
-
-# **Aplicar colores a RSI y Estocástico**
-for col in df_confluencias.columns:
-    if "RSI" in col:
-        df_coloreado[col] = df_coloreado[col].apply(lambda x: aplicar_colores(x, "RSI"))
-    elif "Stoch" in col:
-        df_coloreado[col] = df_coloreado[col].apply(lambda x: aplicar_colores(x, "Stoch"))
-
-# **Diseño de la tabla en HTML con estilos**
-def generar_tabla_html(df):
+def generar_tabla_html(df, columnas):
     estilos = """
     <style>
         table {border-collapse: collapse; width: 100%; font-family: Arial;}
@@ -407,22 +367,54 @@ def generar_tabla_html(df):
         tr:hover {background-color: #ddd;}
     </style>
     """
-    return estilos + df.to_html(index=False, escape=False)
+    return estilos + df[columnas].to_html(index=False, escape=False)
 
-# **Datos de la actualización**
+# ------------------ CREAR TABLAS ------------------
+
+# Copia y aplica formato a RSI y Stoch
+df_rsi = df.copy()
+df_stoch = df.copy()
+
+for col in df.columns:
+    if "RSI" in col:
+        df_rsi[col] = df[col].apply(lambda x: aplicar_color(x, "RSI") if pd.notna(x) else "")
+    elif "Stoch" in col:
+        df_stoch[col] = df[col].apply(lambda x: aplicar_color(x, "Stoch") if pd.notna(x) else "")
+    elif "Precio" in col:
+        df_rsi[col] = df[col]
+        df_stoch[col] = df[col]
+
+# Seleccionar columnas para RSI y Stoch
+columnas_rsi = [col for col in df_rsi.columns if "RSI" in col or "Precio" in col or col == "Ticker"]
+columnas_stoch = [col for col in df_stoch.columns if "Stoch" in col or "Precio" in col or col == "Ticker"]
+
+tabla_rsi_html = generar_tabla_html(df_rsi, columnas_rsi)
+tabla_stoch_html = generar_tabla_html(df_stoch, columnas_stoch)
+
+# ------------------ PUBLICAR EN WORDPRESS ------------------
+
+post_id = "1151"
+wordpress_url = f"https://estrategiaelite.com/wp-json/wp/v2/posts/{post_id}"
+
+contenido_post = f"""
+<h2>Bandas de Bollinger + RSI</h2>
+{tabla_rsi_html}
+<br><br>
+<h2>Bandas de Bollinger + Estoch</h2>
+{tabla_stoch_html}
+"""
+
 post_data = {
-    "title": f"Confluencias de Bandas de Bollinger, RSI y Estocástico - Actualización {datetime.datetime.now().strftime('%Y-%m-%d')}",
-    "content": generar_tabla_html(df_coloreado)
+    "title": f"Confluencias de Bollinger, RSI y Estocástico - {datetime.datetime.now().strftime('%Y-%m-%d')}",
+    "content": contenido_post
 }
 
-# **Ejecutar la solicitud PUT para actualizar el post existente**
 response = requests.put(
     wordpress_url,
     json=post_data,
-    auth=(os.getenv("WORDPRESS_USER"), os.getenv("WORDPRESS_PASSWORD"))  # 🔒 Seguridad en GitHub Secrets
+    auth=(os.getenv("WORDPRESS_USER"), os.getenv("WORDPRESS_PASSWORD"))
 )
 
-# **Verificar si la actualización fue exitosa**
 if response.status_code == 200:
     print("✅ ¡Publicación de confluencias actualizada exitosamente en WordPress!")
 else:
