@@ -584,3 +584,147 @@ if response.status_code == 200:
 else:
     print(f"❌ Error al actualizar confluencias: {response.status_code}, {response.text}")
 
+# Aperturas Mensuales y Osciladores
+
+import requests
+import datetime
+import pandas as pd
+import os
+from tradingview_ta import TA_Handler, Interval
+
+# 📌 POST WORDPRESS
+post_id = "1225"
+wordpress_url = f"https://estrategiaelite.com/wp-json/wp/v2/posts/{post_id}"
+
+# 📌 ACTIVOS A EVALUAR
+activos = {
+    "USDJPY": "FX", "USDCOP": "FX", "USDCAD": "FX", "USDCHF": "FX",
+    "GBPUSD": "FX", "GBPJPY": "FX", "EURAUD": "FX", "EURUSD": "FX",
+    "EURJPY": "FX", "EURGBP": "FX", "AUDUSD": "FX", "AUDJPY": "FX",
+    "NZDUSD": "FX", "CHFJPY": "FX", "CADJPY": "FX", "CADCHF": "FX",
+    "XAUUSD": "OANDA", "DXY": "TVC"
+}
+
+RANGO = 0.005  # ±0.5%
+
+# 📌 FUNCIONES
+def obtener_dato(handler, campo):
+    try:
+        return handler.get_analysis().indicators.get(campo)
+    except:
+        return None
+
+def obtener_fecha_ultima_apertura():
+    hoy = datetime.date.today()
+    return datetime.date(hoy.year, hoy.month, 1).strftime("%Y-%m")
+
+def obtener_indicadores(activo, exchange):
+    resultado = {"RSI": {}, "Stoch": {}}
+    intervalos = {
+        "4H": Interval.INTERVAL_4_HOURS,
+        "1D": Interval.INTERVAL_1_DAY,
+        "1W": Interval.INTERVAL_1_WEEK,
+        "1M": Interval.INTERVAL_1_MONTH,
+    }
+
+    for key, intervalo in intervalos.items():
+        try:
+            handler = TA_Handler(
+                symbol=activo,
+                exchange=exchange,
+                screener="forex" if exchange == "FX" else "cfd",
+                interval=intervalo
+            )
+            rsi = obtener_dato(handler, "RSI")
+            stoch = obtener_dato(handler, "Stoch.K")
+            resultado["RSI"][key] = round(rsi, 2) if rsi else None
+            resultado["Stoch"][key] = round(stoch, 2) if stoch else None
+        except:
+            resultado["RSI"][key] = None
+            resultado["Stoch"][key] = None
+
+    return resultado
+
+def obtener_precio_actual(activo, exchange):
+    try:
+        handler = TA_Handler(
+            symbol=activo,
+            exchange=exchange,
+            screener="forex" if exchange == "FX" else "cfd",
+            interval=Interval.INTERVAL_1_DAY
+        )
+        return handler.get_analysis().indicators.get("close")
+    except:
+        return None
+
+def obtener_apertura_mensual(activo, exchange):
+    try:
+        handler = TA_Handler(
+            symbol=activo,
+            exchange=exchange,
+            screener="forex" if exchange == "FX" else "cfd",
+            interval=Interval.INTERVAL_1_MONTH
+        )
+        return handler.get_analysis().indicators.get("open")
+    except:
+        return None
+
+# 📌 PROCESAMIENTO
+filas = []
+for activo, mercado in activos.items():
+    apertura = obtener_apertura_mensual(activo, mercado)
+    precio = obtener_precio_actual(activo, mercado)
+
+    if apertura and precio and abs(precio - apertura) / apertura <= RANGO:
+        indicadores = obtener_indicadores(activo, mercado)
+        fila = {
+            "Ticker": activo,
+            "Mes": obtener_fecha_ultima_apertura(),
+            "Apertura Mensual": round(apertura, 4),
+            "Precio Actual": round(precio, 4),
+            "Diferencia (%)": round((precio - apertura) / apertura * 100, 2),
+            "RSI_4H": indicadores["RSI"]["4H"],
+            "RSI_1D": indicadores["RSI"]["1D"],
+            "RSI_1W": indicadores["RSI"]["1W"],
+            "RSI_1M": indicadores["RSI"]["1M"],
+            "Stoch_4H": indicadores["Stoch"]["4H"],
+            "Stoch_1D": indicadores["Stoch"]["1D"],
+            "Stoch_1W": indicadores["Stoch"]["1W"],
+            "Stoch_1M": indicadores["Stoch"]["1M"]
+        }
+        filas.append(fila)
+
+# 📌 DATAFRAME Y HTML
+df = pd.DataFrame(filas)
+
+def generar_tabla_html(df):
+    estilos = """
+    <style>
+        table {border-collapse: collapse; width: 100%; font-family: Arial;}
+        th {background-color: #0073aa; color: white; font-weight: bold; padding: 8px; border: 1px solid #ddd;}
+        td {padding: 8px; border: 1px solid #ddd; text-align: center;}
+        tr:nth-child(even) {background-color: #f9f9f9;}
+    </style>
+    """
+    return estilos + df.to_html(index=False, escape=False)
+
+html_tabla = generar_tabla_html(df)
+titulo = f"Aperturas MO + Osciladores ({datetime.datetime.now().strftime('%Y-%m-%d')})"
+
+# 📌 ACTUALIZACIÓN DEL POST
+post_data = {
+    "title": titulo,
+    "content": html_tabla
+}
+
+response = requests.put(
+    wordpress_url,
+    json=post_data,
+    auth=(os.getenv("WORDPRESS_USER"), os.getenv("WORDPRESS_PASSWORD"))
+)
+
+if response.status_code == 200:
+    print("✅ ¡Post actualizado con éxito!")
+else:
+    print(f"❌ Error al actualizar post: {response.status_code}, {response.text}")
+
