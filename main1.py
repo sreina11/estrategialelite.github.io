@@ -302,110 +302,157 @@ temporalidades = {
     "Mensual": Interval.INTERVAL_1_MONTH
 }
 
-# --- Recolectar datos ---
-filtered_data = []
+# --- Diccionarios para almacenar las confluencias ---
+confluencias_rsi = {"4H": [], "Diario": [], "Semanal": [], "Mensual": []}
+confluencias_stoch = {"4H": [], "Diario": [], "Semanal": [], "Mensual": []}
+
+# --- Recolectar y procesar datos ---
 for activo, mercado in activos.items():
-    fila = {"Ticker": activo}
+    datos = {}
     for periodo_nombre, intervalo in temporalidades.items():
         try:
-            handler = TA_Handler(symbol=activo, exchange=mercado, screener="forex" if mercado == "FX" else "cfd", interval=intervalo)
+            handler = TA_Handler(
+                symbol=activo,
+                exchange=mercado,
+                screener="forex" if mercado == "FX" else "cfd",
+                interval=intervalo
+            )
             analysis = handler.get_analysis()
-
             precio = analysis.indicators.get("close", None)
             bb_upper = analysis.indicators.get("BB.upper", None)
             bb_lower = analysis.indicators.get("BB.lower", None)
             rsi = analysis.indicators.get("RSI", None)
             stoch = analysis.indicators.get("Stoch.K", None)
 
-            # Redondear precio
             if precio is not None:
-                if activo in ["XAUUSD", "DXY"]:
-                    precio = round(precio, 2)
-                else:
-                    precio = round(precio, 4)
+                precio = round(precio, 2) if activo in ["XAUUSD", "DXY"] else round(precio, 4)
 
-            fila[f"Precio_{periodo_nombre}"] = precio
-            fila[f"BB_Upper_{periodo_nombre}"] = bb_upper
-            fila[f"BB_Lower_{periodo_nombre}"] = bb_lower
-            fila[f"RSI_{periodo_nombre}"] = rsi
-            fila[f"Stoch_{periodo_nombre}"] = stoch
-
-            if precio and bb_upper and bb_lower and rsi is not None and stoch is not None:
-                if (precio >= bb_upper or precio <= bb_lower) and (rsi >= 70 or rsi <= 30 or stoch >= 80 or stoch <= 20):
-                    filtered_data.append(fila)
+            datos[periodo_nombre] = {
+                "Precio": precio,
+                "BB.upper": bb_upper,
+                "BB.lower": bb_lower,
+                "RSI": rsi,
+                "Stoch.K": stoch
+            }
 
         except Exception as e:
-            print(f"Error obteniendo datos para {activo} ({periodo_nombre}): {e}")
+            print(f"❌ Error con {activo} ({periodo_nombre}): {e}")
 
-df = pd.DataFrame(filtered_data)
+    # --- Evaluar confluencias RSI ---
+    for tf in ["4H", "Diario", "Semanal", "Mensual"]:
+        try:
+            datos_tf = datos.get(tf, {})
+            bb_upper = datos_tf.get("BB.upper")
+            bb_lower = datos_tf.get("BB.lower")
+            precio = datos_tf.get("Precio")
+            rsi_tf = datos_tf.get("RSI")
+            rsi_4h = datos.get("4H", {}).get("RSI")
 
-# ------------------ FUNCIONES ------------------
+            if all(v is not None for v in [precio, bb_upper, bb_lower, rsi_tf, rsi_4h]):
+                if (precio >= bb_upper or precio <= bb_lower) and (rsi_tf >= 70 or rsi_tf <= 30 or rsi_4h >= 70 or rsi_4h <= 30):
+                    confluencias_rsi[tf].append({
+                        "Ticker": activo,
+                        "Precio actual": precio,
+                        "Precio BB_UP": round(bb_upper, 4),
+                        "Precio BB_Low": round(bb_lower, 4),
+                        "RSI_4H": round(rsi_4h, 2),
+                        "RSI_Diario": round(datos.get("Diario", {}).get("RSI", 0), 2),
+                        "RSI_Semanal": round(datos.get("Semanal", {}).get("RSI", 0), 2),
+                        "RSI_Mensual": round(datos.get("Mensual", {}).get("RSI", 0), 2)
+                    })
+        except:
+            pass
 
-def aplicar_color(valor, tipo):
-    if pd.notna(valor):
-        valor = round(valor, 2)
-        if tipo == "RSI":
-            if valor >= 70:
-                return f'<span style="color:red; font-weight:bold;">{valor}</span>'
-            elif valor <= 30:
-                return f'<span style="color:green; font-weight:bold;">{valor}</span>'
-        elif tipo == "Stoch":
-            if valor >= 80:
-                return f'<span style="color:red; font-weight:bold;">{valor}</span>'
-            elif valor <= 20:
-                return f'<span style="color:green; font-weight:bold;">{valor}</span>'
-        return f'<span style="font-weight:bold;">{valor}</span>'
-    return ""
+    # --- Evaluar confluencias Estocástico ---
+    for tf in ["4H", "Diario", "Semanal", "Mensual"]:
+        try:
+            datos_tf = datos.get(tf, {})
+            bb_upper = datos_tf.get("BB.upper")
+            bb_lower = datos_tf.get("BB.lower")
+            precio = datos_tf.get("Precio")
+            stoch_tf = datos_tf.get("Stoch.K")
+            stoch_4h = datos.get("4H", {}).get("Stoch.K")
 
-def generar_tabla_html(df, columnas):
+            if all(v is not None for v in [precio, bb_upper, bb_lower, stoch_tf, stoch_4h]):
+                if (precio >= bb_upper or precio <= bb_lower) and (stoch_tf >= 80 or stoch_tf <= 20 or stoch_4h >= 80 or stoch_4h <= 20):
+                    confluencias_stoch[tf].append({
+                        "Ticker": activo,
+                        "Precio actual": precio,
+                        "Precio BB_UP": round(bb_upper, 4),
+                        "Precio BB_Low": round(bb_lower, 4),
+                        "STOCH_4H": round(stoch_4h, 2),
+                        "STOCH_Diario": round(datos.get("Diario", {}).get("Stoch.K", 0), 2),
+                        "STOCH_Semanal": round(datos.get("Semanal", {}).get("Stoch.K", 0), 2),
+                        "STOCH_Mensual": round(datos.get("Mensual", {}).get("Stoch.K", 0), 2)
+                    })
+        except:
+            pass
+
+# ------------------ Generar contenido HTML ------------------
+
+def aplicar_formato(valor, indicador):
+    try:
+        if indicador == "RSI":
+            if valor <= 30:
+                return f'<span style="color: green; font-weight: bold;">{valor}</span>'
+            elif valor >= 70:
+                return f'<span style="color: red; font-weight: bold;">{valor}</span>'
+        elif indicador == "STOCH":
+            if valor <= 20:
+                return f'<span style="color: green; font-weight: bold;">{valor}</span>'
+            elif valor >= 80:
+                return f'<span style="color: red; font-weight: bold;">{valor}</span>'
+        return f'{valor}'
+    except:
+        return valor
+
+def generar_tabla_html(lista_dict, tipo):
+    if not lista_dict:
+        return "<p>No hay confluencias.</p>"
+    df = pd.DataFrame(lista_dict)
+
+    # Aplicar formato a las columnas de osciladores
+    if tipo == "RSI":
+        for col in ["RSI_4H", "RSI_Diario", "RSI_Semanal", "RSI_Mensual"]:
+            if col in df.columns:
+                df[col] = df[col].apply(lambda x: aplicar_formato(x, "RSI"))
+    elif tipo == "STOCH":
+        for col in ["STOCH_4H", "STOCH_Diario", "STOCH_Semanal", "STOCH_Mensual"]:
+            if col in df.columns:
+                df[col] = df[col].apply(lambda x: aplicar_formato(x, "STOCH"))
+
     estilos = """
     <style>
         table {border-collapse: collapse; width: 100%; font-family: Arial;}
-        th {border: 1px solid #ddd; padding: 10px; text-align: left; background-color: #0073aa; color: white; font-weight: bold;}
-        td {border: 1px solid #ddd; padding: 10px; text-align: center;}
+        th, td {border: 1px solid #ddd; padding: 10px; text-align: center;}
+        th {background-color: #0073aa; color: white;}
         tr:nth-child(even) {background-color: #f2f2f2;}
-        tr:hover {background-color: #ddd;}
     </style>
     """
-    return estilos + df[columnas].to_html(index=False, escape=False)
+    return estilos + df.to_html(index=False, escape=False)
 
-# ------------------ CREAR TABLAS ------------------
+def construir_seccion(nombre, data_dict, tipo):
+    html = ""
+    for tf in ["4H", "Diario", "Semanal", "Mensual"]:
+        html += f"<h3>{tf}</h3>"
+        html += generar_tabla_html(data_dict[tf], tipo)
+    return html
 
-# Copia y aplica formato a RSI y Stoch
-df_rsi = df.copy()
-df_stoch = df.copy()
-
-for col in df.columns:
-    if "RSI" in col:
-        df_rsi[col] = df[col].apply(lambda x: aplicar_color(x, "RSI") if pd.notna(x) else "")
-    elif "Stoch" in col:
-        df_stoch[col] = df[col].apply(lambda x: aplicar_color(x, "Stoch") if pd.notna(x) else "")
-    elif "Precio" in col:
-        df_rsi[col] = df[col]
-        df_stoch[col] = df[col]
-
-# Seleccionar columnas para RSI y Stoch
-columnas_rsi = [col for col in df_rsi.columns if "RSI" in col or "Precio" in col or col == "Ticker"]
-columnas_stoch = [col for col in df_stoch.columns if "Stoch" in col or "Precio" in col or col == "Ticker"]
-
-tabla_rsi_html = generar_tabla_html(df_rsi, columnas_rsi)
-tabla_stoch_html = generar_tabla_html(df_stoch, columnas_stoch)
-
-# ------------------ PUBLICAR EN WORDPRESS ------------------
-
-post_id = "1151"
-wordpress_url = f"https://estrategiaelite.com/wp-json/wp/v2/posts/{post_id}"
+# ------------------ Publicar en WordPress ------------------
 
 contenido_post = f"""
-<h2>Bandas de Bollinger + RSI</h2>
-{tabla_rsi_html}
-<br><br>
-<h2>Bandas de Bollinger + Estoch</h2>
-{tabla_stoch_html}
+<h4>Confluencias de Osciladores y Bandas de Bollinger – {datetime.datetime.now().strftime('%Y-%m-%d')}</h4>
+<h2>Bandas de Bollinger y RSI</h2>
+{construir_seccion("Bandas de Bollinger y RSI", confluencias_rsi, "RSI")}
+<br>
+<h2>Bandas de Bollinger y Estocástico</h2>
+{construir_seccion("Bandas de Bollinger y Estocástico", confluencias_stoch, "STOCH")}
 """
 
+wordpress_url = "https://estrategiaelite.com/wp-json/wp/v2/posts/1151"
+
 post_data = {
-    "title": f"Confluencias de Bollinger, RSI y Estocástico - {datetime.datetime.now().strftime('%Y-%m-%d')}",
+    "title": f"Confluencias de Osciladores y Bandas de Bollinger – {datetime.datetime.now().strftime('%Y-%m-%d')}",
     "content": contenido_post
 }
 
@@ -416,9 +463,10 @@ response = requests.put(
 )
 
 if response.status_code == 200:
-    print("✅ ¡Publicación de confluencias actualizada exitosamente en WordPress!")
+    print("✅ ¡Publicación actualizada exitosamente en WordPress!")
 else:
     print(f"❌ Error al actualizar en WordPress: {response.status_code}, {response.text}")
+
 
 # CONFLUENCIAS MEDIAS MOVILES Y OSCILADORES 
 import requests
