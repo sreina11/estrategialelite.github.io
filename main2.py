@@ -915,7 +915,7 @@ def generar_tabla_html(df):
     </style>
     """
     return estilos + df.to_html(index=False, escape=False)
-EE
+
 # **Publicar en WordPress (Post 1343)**
 post_id = "1343"
 wordpress_url = f"https://www.estrategiaelite.com/wp-json/wp/v2/posts/{post_idERE}"
