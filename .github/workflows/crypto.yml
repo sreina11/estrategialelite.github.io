@@ -18,7 +18,7 @@ jobs:
           python-version: '3.12'
 
       - name: Instalar Dependencias
-        run: pip install tradingview_ta pandas requests yfinance beautifulsoup4 ccxt
+        run: pip install tradingview_ta pandas requests yfinance beautifulsoup4
 
       - name: Ejecutar Script
         env:
