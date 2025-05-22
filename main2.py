@@ -848,3 +848,142 @@ if response.status_code == 200:
     print("✅ Publicación actualizada correctamente.")
 else:
     print(f"❌ Error al actualizar: {response.status_code} - {response.text}")
+
+# APERTURAS MENSUALES
+import requests
+import os
+import pandas as pd
+import ccxt
+from datetime import datetime, timedelta
+
+# **Definir el intercambio y los activos**
+exchange = ccxt.binance()
+tickers = ["BTC/USDT", "ETH/USDT", "XRP/USDT", "BNB/USDT", "SOL/USDT", "DOGE/USDT",
+           "ADA/USDT", "AVAX/USDT", "XLM/USDT", "SHIB/USDT", "LINK/USDT", "SUI/USDT",
+           "WAXP/USDT", "PAXG/USDT"]
+
+# **Definir el rango de fechas**
+end_date = datetime.today()
+start_date = end_date - timedelta(days=180)
+start_timestamp = int(start_date.timestamp() * 1000)
+
+# **Función para obtener datos históricos**
+def get_historical_prices(symbol, timeframe):
+    try:
+        ohlcv = exchange.fetch_ohlcv(symbol, timeframe=timeframe, since=start_timestamp, limit=180)
+        if not ohlcv:
+            print(f"⚠️ No se encontraron datos para {symbol}")
+            return None
+        df = pd.DataFrame(ohlcv, columns=["timestamp", "open", "high", "low", "close", "volume"])
+        df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+        df.set_index("timestamp", inplace=True)
+        return df
+    except Exception as e:
+        print(f"❌ Error al obtener datos de {symbol}: {e}")
+        return None
+
+# **Funciones para indicadores técnicos**
+def calculate_rsi(df, period=14):
+    delta = df["close"].diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+    rs = gain / loss
+    return round(100 - (100 / (1 + rs)), 2)
+
+def calculate_stoch(df, period=14):
+    lowest_low = df["low"].rolling(window=period).min()
+    highest_high = df["high"].rolling(window=period).max()
+    stoch = ((df["close"] - lowest_low) / (highest_high - lowest_low)) * 100
+    return round(stoch, 2)
+
+# **Procesar activos**
+resultados = []
+
+for ticker in tickers:
+    df_daily = get_historical_prices(ticker, "1d")
+    df_4h = get_historical_prices(ticker, "4h")
+    df_weekly = get_historical_prices(ticker, "1w")
+
+    if df_daily is None or df_4h is None or df_weekly is None:
+        continue
+
+    precio_actual = round(df_daily["close"].iloc[-1], 5)
+    monthly_openings = df_daily.resample('MS').first()
+
+    for fecha, row in monthly_openings.iterrows():
+        apertura_mensual = round(row["open"], 5)
+        diferencia = round(((precio_actual - apertura_mensual) / apertura_mensual) * 100, 5)
+
+        if -1 <= diferencia <= 1:
+            rsi_4h = calculate_rsi(df_4h).iloc[-1]
+            rsi_1d = calculate_rsi(df_daily).iloc[-1]
+            rsi_1w = calculate_rsi(df_weekly).iloc[-1]
+
+            stoch_4h = calculate_stoch(df_4h).iloc[-1]
+            stoch_1d = calculate_stoch(df_daily).iloc[-1]
+            stoch_1w = calculate_stoch(df_weekly).iloc[-1]
+
+            if (rsi_4h <= 30 or rsi_4h >= 70 or rsi_1w <= 30 or rsi_1w >= 70) or \
+               (stoch_4h <= 20 or stoch_4h >= 80 or stoch_1d <= 20 or stoch_1d >= 80 or stoch_1w <= 20 or stoch_1w >= 80):
+
+                resultados.append({
+                    "Ticker": ticker.replace("/", ""),
+                    "Mes": fecha.strftime('%Y-%m'),
+                    "Apertura Mensual": apertura_mensual,
+                    "Precio Actual": precio_actual,
+                    "Diferencia (%)": diferencia,
+                    "RSI_4H": rsi_4h,
+                    "RSI_1D": rsi_1d,
+                    "RSI_1W": rsi_1w,
+                    "Stoch_4H": stoch_4h,
+                    "Stoch_1D": stoch_1d,
+                    "Stoch_1W": stoch_1w
+                })
+
+df_resultados = pd.DataFrame(resultados)
+
+# **Publicar en WordPress**
+post_id = "1343"
+wordpress_url = f"https://www.estrategiaelite.com/wp-json/wp/v2/posts/{post_id}"
+
+# **Función para aplicar formato de colores y redondear valores**
+def aplicar_colores(valor, tipo):
+    if pd.notna(valor):
+        if tipo == "RSI" or tipo == "Stoch":
+            valor = round(valor, 2)  # Redondear RSI y Estocástico a 2 decimales
+            if tipo == "RSI":
+                if valor >= 70:
+                    return f'<span style="color: red; font-weight: bold;">{valor:.2f}</span>'  # Sobrecompra
+                elif valor <= 30:
+                    return f'<span style="color: green; font-weight: bold;">{valor:.2f}</span>'  # Sobreventa
+            elif tipo == "Stoch":
+                if valor >= 80:
+                    return f'<span style="color: red; font-weight: bold;">{valor:.2f}</span>'  # Sobrecompra
+                elif valor <= 20:
+                    return f'<span style="color: green; font-weight: bold;">{valor:.2f}</span>'  # Sobreventa
+        else:
+            valor = round(valor, 5)  # Mantener precios con 5 decimales
+    return f'<span style="font-weight: bold;">{valor:.5f}</span>' if tipo != "RSI" and tipo != "Stoch" else f'<span style="font-weight: bold;">{valor:.2f}</span>'
+
+def generar_tabla_html(df):
+    estilos = """
+    <style>
+        table {border-collapse: collapse; width: 100%; font-family: Arial;}
+        th, td {border: 1px solid #ddd; padding: 10px; text-align: center;}
+        th {background-color: #0073aa; color: white; font-weight: bold;}
+    </style>
+    """
+    return estilos + df.to_html(index=False, escape=False)
+
+post_data = {
+    "title": f"Confluencias Técnicas - {pd.Timestamp.today().strftime('%Y-%m-%d')}",
+    "content": generar_tabla_html(df_coloreado)
+}
+
+response = requests.put(wordpress_url, json=post_data, auth=(os.getenv("WORDPRESS_USER"), os.getenv("WORDPRESS_PASSWORD")))
+
+if response.status_code == 200:
+    print("✅ ¡Publicación actualizada!")
+else:
+    print(f"❌ Error {response.status_code}: {response.text}")
+
