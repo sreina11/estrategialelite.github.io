@@ -567,4 +567,134 @@ if response.status_code == 200:
 else:
     print(f"Error al actualizar post: {response.status_code}, {response.text}")
 
+# BANDAS DE BOLLINGER Y OSCILADORES
 
+import requests
+from tradingview_ta import TA_Handler, Interval
+import pandas as pd
+import datetime
+import os
+import re  # Importamos el módulo para limpiar HTML
+
+# ----------- Configuración de activos y temporalidades -----------
+activos = {
+    "BTCUSDT": "BINANCE", "ETHUSDT": "BINANCE", "XRPUSDT": "BINANCE",
+    "BNBUSDT": "BINANCE", "SOLUSDT": "BINANCE", "DOGEUSDT": "BINANCE",
+    "ADAUSDT": "BINANCE", "AVAXUSDT": "BINANCE", "XLMUSDT": "BINANCE",
+    "SHIBUSDT": "BINANCE", "LINKUSDT": "BINANCE", "SUIUSDT": "BINANCE",
+    "WAXPUSDT": "BINANCE", "PAXGUSDT": "BINANCE"
+}
+
+temporalidades = {
+    "Diario": Interval.INTERVAL_1_DAY,
+    "Semanal": Interval.INTERVAL_1_WEEK,
+    "Mensual": Interval.INTERVAL_1_MONTH
+}
+
+# ----------- Función de análisis por activo y temporalidad -----------
+def analizar_ticker(ticker, exchange):
+    precios = {}
+    datos_rsi = {}
+    datos_stoch = {}
+
+    for nombre, intervalo in temporalidades.items():
+        try:
+            handler = TA_Handler(symbol=ticker, exchange=exchange, screener="crypto", interval=intervalo)
+            analysis = handler.get_analysis()
+            precio_actual = round(analysis.indicators["close"], 4)  # 4 decimales
+            bb_up = round(analysis.indicators["BB.upper"], 2)
+            bb_low = round(analysis.indicators["BB.lower"], 2)
+
+            precios[nombre] = {
+                "Precio actual": precio_actual,
+                "BB_UP": bb_up,
+                "BB_Low": bb_low
+            }
+
+            rsi = round(analysis.indicators["RSI"], 2)
+            datos_rsi[nombre] = f'<span style="color:{"red" if rsi >= 70 else "green" if rsi <= 20 else "black"}">{rsi}</span>'
+
+            stoch = round(analysis.indicators["Stoch.K"], 2)
+            datos_stoch[nombre] = f'<span style="color:{"red" if stoch >= 80 else "green" if stoch <= 20 else "black"}">{stoch}</span>'
+
+        except Exception as e:
+            print(f"Error en {ticker} - {nombre}: {e}")
+            precios[nombre] = {"Precio actual": None, "BB_UP": None, "BB_Low": None}
+            datos_rsi[nombre] = None
+            datos_stoch[nombre] = None
+
+    return precios, datos_rsi, datos_stoch
+
+# ----------- Recolectar datos en tiempo real -----------
+bb_rsi = {"Diario": [], "Semanal": [], "Mensual": []}
+bb_stoch = {"Diario": [], "Semanal": [], "Mensual": []}
+
+for ticker, exchange in activos.items():
+    precios, rsi, stoch = analizar_ticker(ticker, exchange)
+
+    for timeframe in temporalidades.keys():
+        p = precios[timeframe]
+
+        if p["Precio actual"] is not None:
+            bb_up_num = p["BB_UP"]
+            bb_low_num = p["BB_Low"]
+
+            # Negrilla en precio de BB más cercano
+            if abs(p["Precio actual"] - bb_up_num) < abs(p["Precio actual"] - bb_low_num):
+                p["BB_UP"] = f"<b>{bb_up_num}</b>"
+            else:
+                p["BB_Low"] = f"<b>{bb_low_num}</b>"
+
+            # Convertir RSI a número antes de comparar
+            rsi_numerico = float(re.sub(r'<[^>]+>', '', rsi[timeframe]))
+
+            # Convertir Estocástico a número antes de comparar
+            stoch_numerico = float(re.sub(r'<[^>]+>', '', stoch[timeframe]))
+
+            # Confluencias BB + RSI
+            if (p["Precio actual"] >= bb_up_num or p["Precio actual"] <= bb_low_num) and (
+                rsi_numerico >= 70 or rsi_numerico <= 20
+            ):
+                bb_rsi[timeframe].append({
+                    "Ticker": ticker,
+                    "Precio actual": p["Precio actual"],
+                    "Precio BB_UP": p["BB_UP"],
+                    "Precio BB_Low": p["BB_Low"],
+                    "RSI Diario": rsi.get("Diario"),
+                    "RSI Semanal": rsi.get("Semanal"),
+                    "RSI Mensual": rsi.get("Mensual")
+                })
+
+            # Confluencias BB + Estocástico
+            if (p["Precio actual"] >= bb_up_num or p["Precio actual"] <= bb_low_num) and (
+                stoch_numerico >= 80 or stoch_numerico <= 20
+            ):
+                bb_stoch[timeframe].append({
+                    "Ticker": ticker,
+                    "Precio actual": p["Precio actual"],
+                    "Precio BB_UP": p["BB_UP"],
+                    "Precio BB_Low": p["BB_Low"],
+                    "STOCH Diario": stoch.get("Diario"),
+                    "STOCH Semanal": stoch.get("Semanal"),
+                    "STOCH Mensual": stoch.get("Mensual")
+                })
+
+# ----------- Publicar en WordPress -----------
+post_id = "1380"
+url = f"https://estrategiaelite.com/wp-json/wp/v2/posts/{post_id}"
+
+payload = {
+    "title": f"Confluencias de Osciladores y Bandas de Bollinger – {datetime.datetime.now().strftime('%Y-%m-%d')}",
+    "content": f"<h4>Confluencias de Osciladores y Bandas de Bollinger</h4>"
+}
+
+response = requests.put(
+    url,
+    json=payload,
+    auth=(os.getenv("WORDPRESS_USER"), os.getenv("WORDPRESS_PASSWORD"))
+)
+
+if response.status_code == 200:
+    print("✅ Publicación actualizada correctamente.")
+else:
+    print(f"❌ Error al actualizar: {response.status_code} - {response.text}")
