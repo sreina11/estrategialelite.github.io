@@ -895,7 +895,7 @@ def calculate_rsi(df, period=14):
     loss = -delta.where(delta < 0, 0).rolling(window=period).mean()
     rs = gain / loss
     rsi = 100 - (100 / (1 + rs))
-    return float(rsi.iloc[-1]) if not rsi.empty else None
+    return round(float(rsi.iloc[-1]), 2) if not rsi.empty else None
 
 def calculate_stoch(df, period=14):
     if df.empty:
@@ -903,7 +903,22 @@ def calculate_stoch(df, period=14):
     lowest_low = df["Low"].rolling(window=period).min()
     highest_high = df["High"].rolling(window=period).max()
     stoch = ((df["Close"] - lowest_low) / (highest_high - lowest_low)) * 100
-    return float(stoch.iloc[-1]) if not stoch.empty else None
+    return round(float(stoch.iloc[-1]), 2) if not stoch.empty else None
+
+# **Función para aplicar colores**
+def aplicar_colores(valor, tipo):
+    if valor is not None:
+        if tipo == "RSI":
+            if valor >= 70:
+                return f'<span style="color: red; font-weight: bold;">{valor:.2f}</span>'
+            elif valor <= 30:
+                return f'<span style="color: green; font-weight: bold;">{valor:.2f}</span>'
+        elif tipo == "STOCH":
+            if valor >= 80:
+                return f'<span style="color: red; font-weight: bold;">{valor:.2f}</span>'
+            elif valor <= 20:
+                return f'<span style="color: green; font-weight: bold;">{valor:.2f}</span>'
+    return f'<span style="font-weight: bold;">{valor:.2f}</span>'
 
 # **Obtener y filtrar datos**
 filtered_rsi = []
@@ -935,12 +950,14 @@ for ticker, yahoo_symbol in symbols.items():
             # **Filtrar activos con RSI extremo**
             if rsi_4h is not None and rsi_d is not None and rsi_w is not None:
                 if rsi_4h <= 30 or rsi_4h >= 70 or rsi_d <= 30 or rsi_d >= 70 or rsi_w <= 30 or rsi_w >= 70:
-                    filtered_rsi.append([ticker, current_price, open_price, date, round(rango, 2), rsi_4h, rsi_d, rsi_w])
+                    filtered_rsi.append([ticker, current_price, open_price, date, round(rango, 2),
+                                         aplicar_colores(rsi_4h, "RSI"), aplicar_colores(rsi_d, "RSI"), aplicar_colores(rsi_w, "RSI")])
 
             # **Filtrar activos con Estocástico extremo**
             if stoch_4h is not None and stoch_d is not None and stoch_w is not None:
                 if stoch_4h <= 20 or stoch_4h >= 80 or stoch_d <= 20 or stoch_d >= 80 or stoch_w <= 20 or stoch_w >= 80:
-                    filtered_stoch.append([ticker, current_price, open_price, date, round(rango, 2), stoch_4h, stoch_d, stoch_w])
+                    filtered_stoch.append([ticker, current_price, open_price, date, round(rango, 2),
+                                           aplicar_colores(stoch_4h, "STOCH"), aplicar_colores(stoch_d, "STOCH"), aplicar_colores(stoch_w, "STOCH")])
 
 # **Crear DataFrames con los resultados**
 df_rsi = pd.DataFrame(filtered_rsi, columns=["Symbol", "Current Price", "Monthly Open", "Fecha", "Rango (%)", "RSI_4H", "RSI_Diario", "RSI_Semanal"])
@@ -977,5 +994,6 @@ if response.status_code == 200:
     print("✅ ¡Publicación actualizada en WordPress!")
 else:
     print(f"❌ Error al actualizar la publicación: {response.status_code} - {response.text}")
+
 
 
