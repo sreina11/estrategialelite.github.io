@@ -251,3 +251,320 @@ if response_stoch.status_code == 200:
 else:
     print(f"❌ Error al actualizar el Estocástico: {response_stoch.status_code}, {response_stoch.text}")
 
+# Medias moviles 
+
+# MA 200 
+from tradingview_ta import TA_Handler, Interval
+import pandas as pd
+
+# **Lista de activos con su mercado en TradingView**
+assets = {
+    "BTCUSDT": "BINANCE",
+    "ETHUSDT": "BINANCE",
+    "XRPUSDT": "BINANCE",
+    "BNBUSDT": "BINANCE",
+    "SOLUSDT": "BINANCE",
+    "DOGEUSDT": "BINANCE",
+    "ADAUSDT": "BINANCE",
+    "AVAXUSDT": "BINANCE",
+    "XLMUSDT": "BINANCE",
+    "SHIBUSDT": "BINANCE",
+    "LINKUSDT": "BINANCE",
+    "SUIUSDT": "BINANCE",
+    "WAXPUSDT": "BINANCE",
+    "PAXGUSDT": "BINANCE"
+}
+
+
+# **Intervalos de TradingView**
+intervals_ma200 = {
+    "Semanal": Interval.INTERVAL_1_WEEK,
+    "Mensual": Interval.INTERVAL_1_MONTH
+}
+
+# **Diccionario para almacenar los datos**
+data_ma_200 = []
+filtered_ma_200 = []
+
+# **Obtención de datos desde TradingView**
+for asset, market in assets.items():
+    asset_data = {"Activo": asset}
+
+    for period_name, interval in intervals_ma200.items():
+        try:
+            handler = TA_Handler(symbol=asset, exchange=market, screener="crypto", interval=interval)
+            analysis = handler.get_analysis()
+
+            price = analysis.indicators.get("close", None)  # Precio actual
+            ma_200 = analysis.indicators.get("SMA200", None)  # Media móvil de 200
+
+            asset_data[f"Precio_{period_name}"] = price
+            asset_data[f"200_MA_{period_name}"] = ma_200
+
+            # **Calcular el rango en porcentaje**
+            if price and ma_200:
+                rango = ((price - ma_200) / ma_200) * 100
+                asset_data[f"Rango_{period_name}"] = rango
+
+                # **Filtrar si el rango está dentro de ±1%**
+                if -1 <= rango <= 1:
+                    filtered_ma_200.append(asset_data)
+
+        except Exception as e:
+            print(f"Error obteniendo datos para {asset} ({period_name}): {e}")
+
+    data_ma_200.append(asset_data)
+
+# **Conversión a DataFrame**
+df_ma_200 = pd.DataFrame(data_ma_200)
+df_filtrado_ma_200 = pd.DataFrame(filtered_ma_200)  # ✅ Renombrado para evitar conflictos
+
+# **Mostrar todos los datos**
+print("📊 Datos completos de la MA200:")
+print(df_ma_200)
+
+# **Mostrar activos dentro del rango ±1% de la MA200**
+print("\n✅ Activos dentro del rango ±1% de la MA200:")
+print(df_filtrado_ma_200)
+
+# MA 50 
+from tradingview_ta import TA_Handler, Interval
+import pandas as pd
+
+# **Lista de activos con su mercado en TradingView**
+assets = {
+    "BTCUSDT": "BINANCE",
+    "ETHUSDT": "BINANCE",
+    "XRPUSDT": "BINANCE",
+    "BNBUSDT": "BINANCE",
+    "SOLUSDT": "BINANCE",
+    "DOGEUSDT": "BINANCE",
+    "ADAUSDT": "BINANCE",
+    "AVAXUSDT": "BINANCE",
+    "XLMUSDT": "BINANCE",
+    "SHIBUSDT": "BINANCE",
+    "LINKUSDT": "BINANCE",
+    "SUIUSDT": "BINANCE",
+    "WAXPUSDT": "BINANCE",
+    "PAXGUSDT": "BINANCE"
+}
+
+# **Intervalos de TradingView**
+intervals_ma50 = {
+    "Semanal": Interval.INTERVAL_1_WEEK,
+    "Mensual": Interval.INTERVAL_1_MONTH
+}
+
+# **Diccionario para almacenar los datos**
+data_ma_50 = []
+filtered_ma_50 = []
+
+# **Obtención de datos desde TradingView**
+for asset, market in assets.items():
+    asset_data = {"Activo": asset}
+
+    for period_name, interval in intervals_ma50.items():
+        try:
+            handler = TA_Handler(symbol=asset, exchange=market, screener="crypto", interval=interval)
+            analysis = handler.get_analysis()
+
+            price = analysis.indicators.get("close", None)  # Precio actual
+            ma_50 = analysis.indicators.get("SMA50", None)  # Media móvil de 50
+
+            asset_data[f"Precio_{period_name}"] = price
+            asset_data[f"50_MA_{period_name}"] = ma_50
+
+            # **Calcular el rango en porcentaje**
+            if price and ma_50:
+                rango = ((price - ma_50) / ma_50) * 100
+                asset_data[f"Rango_{period_name}"] = rango
+
+                # **Filtrar si el rango está dentro de ±1%**
+                if -1 <= rango <= 1:
+                    filtered_ma_50.append(asset_data)
+
+        except Exception as e:
+            print(f"Error obteniendo datos para {asset} ({period_name}): {e}")
+
+    data_ma_50.append(asset_data)
+
+# **Conversión a DataFrame**
+df_ma_50 = pd.DataFrame(data_ma_50)
+df_filtrado_ma_50 = pd.DataFrame(filtered_ma_50)  # ✅ Renombrado para evitar conflictos
+
+# **Mostrar todos los datos**
+print("📊 Datos completos de la MA50:")
+print(df_ma_50)
+
+# **Mostrar activos dentro del rango ±1% de la MA50**
+print("\n✅ Activos dentro del rango ±1% de la MA50:")
+print(df_filtrado_ma_50)
+
+# MA 2O
+from tradingview_ta import TA_Handler, Interval
+import pandas as pd
+
+# **Lista de activos con su mercado en TradingView**
+assets = {
+    "BTCUSDT": "BINANCE",
+    "ETHUSDT": "BINANCE",
+    "XRPUSDT": "BINANCE",
+    "BNBUSDT": "BINANCE",
+    "SOLUSDT": "BINANCE",
+    "DOGEUSDT": "BINANCE",
+    "ADAUSDT": "BINANCE",
+    "AVAXUSDT": "BINANCE",
+    "XLMUSDT": "BINANCE",
+    "SHIBUSDT": "BINANCE",
+    "LINKUSDT": "BINANCE",
+    "SUIUSDT": "BINANCE",
+    "WAXPUSDT": "BINANCE",
+    "PAXGUSDT": "BINANCE"
+}
+
+
+# **Intervalos de TradingView**
+intervals_ma20 = {
+    "Semanal": Interval.INTERVAL_1_WEEK,
+    "Mensual": Interval.INTERVAL_1_MONTH
+}
+
+# **Diccionario para almacenar los datos**
+data_ma_20 = []
+filtered_ma_20 = []
+
+# **Obtención de datos desde TradingView**
+for asset, market in assets.items():
+    asset_data = {"Activo": asset}
+
+    for period_name, interval in intervals_ma20.items():
+        try:
+            handler = TA_Handler(symbol=asset, exchange=market, screener="crypto", interval=interval)
+            analysis = handler.get_analysis()
+
+            price = analysis.indicators.get("close", None)  # Precio actual
+            ma_20 = analysis.indicators.get("SMA20", None)  # Media móvil de 20
+
+            asset_data[f"Precio_{period_name}"] = price
+            asset_data[f"20_MA_{period_name}"] = ma_20
+
+            # **Calcular el rango en porcentaje**
+            if price and ma_20:
+                rango = ((price - ma_20) / ma_20) * 100
+                asset_data[f"Rango_{period_name}"] = rango
+
+                # **Filtrar si el rango está dentro de ±1%**
+                if -1 <= rango <= 1:
+                    filtered_ma_20.append(asset_data)
+
+        except Exception as e:
+            print(f"Error obteniendo datos para {asset} ({period_name}): {e}")
+
+    data_ma_20.append(asset_data)
+
+# **Conversión a DataFrame**
+df_ma_20 = pd.DataFrame(data_ma_20)
+df_filtrado_ma_20 = pd.DataFrame(filtered_ma_20)  # ✅ Renombrado para evitar conflictos
+
+# **Mostrar todos los datos**
+print("📊 Datos completos de la MA20:")
+print(df_ma_20)
+
+# **Mostrar activos dentro del rango ±1% de la MA20**
+print("\n✅ Activos dentro del rango ±1% de la MA20:")
+print(df_filtrado_ma_20)
+
+# CONFLUENCIAS MEDIAS MOVILES Y RSI
+
+from tradingview_ta import TA_Handler, Interval
+import pandas as pd
+import datetime
+import requests
+import os  # Para autenticación en WordPress
+
+# Activos y mercado
+activos = {
+    "BTCUSDT": "BINANCE", "ETHUSDT": "BINANCE", "XRPUSDT": "BINANCE", "BNBUSDT": "BINANCE",
+    "SOLUSDT": "BINANCE", "DOGEUSDT": "BINANCE", "ADAUSDT": "BINANCE", "AVAXUSDT": "BINANCE",
+    "XLMUSDT": "BINANCE", "SHIBUSDT": "BINANCE", "LINKUSDT": "BINANCE", "SUIUSDT": "BINANCE",
+    "WAXPUSDT": "BINANCE", "PAXGUSDT": "BINANCE"
+}
+
+# Intervalos de medias móviles
+intervalos_ma = {
+    "Semanal": Interval.INTERVAL_1_WEEK,
+    "Mensual": Interval.INTERVAL_1_MONTH
+}
+
+# Diccionario para almacenar los datos filtrados
+data_filtrada = []
+
+# Obtención de datos desde TradingView
+for activo, mercado in activos.items():
+    datos_activo = {"Ticker": activo}
+    cumple_confluencia = False  # Bandera para detectar si el activo cumple con la condición
+
+    for periodo, intervalo in intervalos_ma.items():
+        try:
+            handler = TA_Handler(symbol=activo, exchange=mercado, screener="crypto", interval=intervalo)
+            analysis = handler.get_analysis()
+
+            precio = analysis.indicators.get("close", None)  # Precio actual
+            ma = analysis.indicators.get("SMA200", None)  # Media móvil de 200
+
+            datos_activo[f"Precio_{periodo}"] = round(precio, 2) if precio else None
+            datos_activo[f"MA200_{periodo}"] = round(ma, 2) if ma else None
+
+            # Calcular rango en porcentaje
+            if precio and ma:
+                rango = ((precio - ma) / ma) * 100
+                datos_activo[f"Rango_{periodo}"] = round(rango, 2)
+
+                # Verificar si está dentro de ±1%
+                if -1 <= rango <= 1:
+                    cumple_confluencia = True
+
+        except Exception as e:
+            print(f"Error obteniendo datos para {activo} ({periodo}): {e}")
+
+    # Si el activo cumple con la confluencia, se añade a la lista
+    if cumple_confluencia:
+        data_filtrada.append(datos_activo)
+
+# Generar tabla HTML
+def generar_tabla_html(df):
+    estilos = """
+    <style>
+        table {border-collapse: collapse; width: 100%; font-family: Arial;}
+        th {background-color: #0073aa; color: white; font-weight: bold; padding: 8px; border: 1px solid #ddd;}
+        td {padding: 8px; border: 1px solid #ddd; text-align: center;}
+        tr:nth-child(even) {background-color: #f9f9f9;}
+    </style>
+    """
+    return estilos + df.to_html(index=False, escape=False)
+
+df_filtrado = pd.DataFrame(data_filtrada)
+html_tabla = generar_tabla_html(df_filtrado) if not df_filtrado.empty else "<p>No hay activos en el rango de ±1%</p>"
+
+# Publicar en WordPress
+post_id = "1339"
+wordpress_url = f"https://estrategiaelite.com/wp-json/wp/v2/posts/{post_id}"
+titulo = f"Activos en el rango de MA200 ({datetime.datetime.now().strftime('%Y-%m-%d')})"
+
+post_data = {
+    "title": titulo,
+    "content": html_tabla
+}
+
+response = requests.put(
+    wordpress_url,
+    json=post_data,
+    auth=(os.getenv("WORDPRESS_USER"), os.getenv("WORDPRESS_PASSWORD"))
+)
+
+if response.status_code == 200:
+    print("Post actualizado con éxito")
+else:
+    print(f"Error al actualizar post: {response.status_code}, {response.text}")
+
+
