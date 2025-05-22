@@ -857,7 +857,7 @@ import ccxt
 from datetime import datetime, timedelta
 
 # **Definir el intercambio y los activos**
-exchange = ccxt.binance()
+exchange = ccxt.bybit()
 tickers = ["BTC/USDT", "ETH/USDT", "XRP/USDT", "BNB/USDT", "SOL/USDT", "DOGE/USDT",
            "ADA/USDT", "AVAX/USDT", "XLM/USDT", "SHIB/USDT", "LINK/USDT", "SUI/USDT",
            "WAXP/USDT", "PAXG/USDT"]
