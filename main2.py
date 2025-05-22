@@ -849,127 +849,63 @@ response = requests.put(url, json=payload, auth=(os.getenv("WORDPRESS_USER"), os
 print("✅ Publicación actualizada correctamente." if response.status_code == 200 else f"❌ Error al actualizar: {response.status_code} - {response.text}")
 
 # APERTURAS
-import requests
-import os
 import pandas as pd
+import yfinance as yf
 from datetime import datetime, timedelta
+import requests
+import os  # Para manejar variables de entorno
+from requests.auth import HTTPBasicAuth
 
-# **Lista de activos**
-activos = ["BTCUSDT", "ETHUSDT", "XRPUSDT", "BNBUSDT", "SOLUSDT", "DOGEUSDT",
-           "ADAUSDT", "AVAXUSDT", "XLMUSDT", "SHIBUSDT", "LINKUSDT", "SUIUSDT",
-           "WAXPUSDT", "PAXGUSDT"]
+# **Lista de criptomonedas**
+symbols = {
+    "BTCUSDT": "BTC-USD", "ETHUSDT": "ETH-USD", "XRPUSDT": "XRP-USD", "BNBUSDT": "BNB-USD",
+    "SOLUSDT": "SOL-USD", "DOGEUSDT": "DOGE-USD", "ADAUSDT": "ADA-USD", "AVAXUSDT": "AVAX-USD",
+    "XLMUSDT": "XLM-USD", "SHIBUSDT": "SHIB-USD", "LINKUSDT": "LINK-USD",
+    "WAXPUSDT": "WAXP-USD", "PAXGUSDT": "PAXG-USD"
+}
 
-# **URL de la API de Binance**
-BINANCE_URL = "https://api.binance.com/api/v3/klines"
+# **Obtener la apertura mensual de los últimos 6 meses**
+def get_monthly_open(symbol):
+    crypto = yf.Ticker(symbol)
+    hist = crypto.history(period="6mo", interval="1mo")
 
-# **Definir rango de fechas**
-end_date = datetime.today()
-start_date = end_date - timedelta(days=180)
-start_timestamp = int(start_date.timestamp() * 1000)
+    if hist.empty:
+        print(f"No se encontraron datos para {symbol}")
+        return []
 
-# **Función para obtener datos históricos desde Binance**
-def get_historical_prices(symbol, interval):
-    try:
-        params = {"symbol": symbol, "interval": interval, "startTime": start_timestamp, "limit": 180}
-        response = requests.get(BINANCE_URL, params=params)
-        response.raise_for_status()
-        data = response.json()
-        
-        df = pd.DataFrame(data, columns=["timestamp", "open", "high", "low", "close", "volume", 
-                                         "close_time", "quote_asset_volume", "trades", "taker_buy_base", 
-                                         "taker_buy_quote", "ignore"])
-        df = df[["timestamp", "open", "high", "low", "close"]].astype(float)
-        df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
-        df.set_index("timestamp", inplace=True)
-        return df
-    except Exception as e:
-        print(f"❌ Error al obtener datos de {symbol}: {e}")
+    return list(zip(hist.index.strftime("%Y-%m"), hist["Open"].tolist()))  # Fecha y apertura
+
+# **Obtener el precio actual**
+def get_current_price(symbol):
+    crypto = yf.Ticker(symbol)
+    price = crypto.history(period="1d")["Close"].values
+
+    if len(price) == 0:
+        print(f"Error obteniendo el precio actual de {symbol}")
         return None
 
-# **Funciones para calcular RSI y Estocástico**
-def calculate_rsi(df, period=14):
-    delta = df["close"].diff()
-    gain = delta.where(delta > 0, 0).rolling(window=period).mean()
-    loss = -delta.where(delta < 0, 0).rolling(window=period).mean()
-    rs = gain / loss
-    return round(100 - (100 / (1 + rs)).iloc[-1], 2)
+    return float(price[-1])
 
-def calculate_stoch(df, period=14):
-    lowest_low = df["low"].rolling(window=period).min()
-    highest_high = df["high"].rolling(window=period).max()
-    stoch = ((df["close"] - lowest_low) / (highest_high - lowest_low)) * 100
-    return round(stoch.iloc[-1], 2)
+# **Obtener y filtrar datos**
+filtered_data = []
 
-# **Procesar cada activo**
-resultados = []
+for ticker, yahoo_symbol in symbols.items():
+    monthly_opens = get_monthly_open(yahoo_symbol)
+    current_price = get_current_price(yahoo_symbol)
 
-for activo in activos:
-    df_daily = get_historical_prices(activo, "1d")
-    df_4h = get_historical_prices(activo, "4h")
-    df_weekly = get_historical_prices(activo, "1w")
-
-    if df_daily is None or df_4h is None or df_weekly is None:
+    if current_price is None:
         continue
 
-    precio_actual = round(df_daily["close"].iloc[-1], 5)
-    monthly_openings = df_daily.resample('MS').first()
+    for date, open_price in monthly_opens:
+        rango = ((current_price - open_price) / open_price) * 100
 
-    for fecha, row in monthly_openings.iterrows():
-        apertura_mensual = round(row["open"], 5)
-        diferencia = round(((precio_actual - apertura_mensual) / apertura_mensual) * 100, 5)
+        if abs(rango) <= 1:  # ±1%
+            filtered_data.append([ticker, current_price, open_price, date, round(rango, 2)])
 
-        if -1 <= diferencia <= 1:
-            rsi_4h = calculate_rsi(df_4h)
-            rsi_1d = calculate_rsi(df_daily)
-            rsi_1w = calculate_rsi(df_weekly)
+# **Crear DataFrame con los resultados**
+df = pd.DataFrame(filtered_data, columns=["Symbol", "Current Price", "Monthly Open", "Fecha", "Rango (%)"])
 
-            stoch_4h = calculate_stoch(df_4h)
-            stoch_1d = calculate_stoch(df_daily)
-            stoch_1w = calculate_stoch(df_weekly)
-
-            if (rsi_4h <= 30 or rsi_4h >= 70 or rsi_1w <= 30 or rsi_1w >= 70) or \
-               (stoch_4h <= 20 or stoch_4h >= 80 or stoch_1d <= 20 or stoch_1d >= 80 or stoch_1w <= 20 or stoch_1w >= 80):
-
-                resultados.append({
-                    "Ticker": activo,
-                    "Mes": fecha.strftime('%Y-%m'),
-                    "Apertura Mensual": apertura_mensual,
-                    "Precio Actual": precio_actual,
-                    "Diferencia (%)": diferencia,
-                    "RSI_4H": rsi_4h,
-                    "RSI_1D": rsi_1d,
-                    "RSI_1W": rsi_1w,
-                    "Stoch_4H": stoch_4h,
-                    "Stoch_1D": stoch_1d,
-                    "Stoch_1W": stoch_1w
-                })
-
-df_resultados = pd.DataFrame(resultados)
-
-# **Publicar en WordPress (Post 1343)**
-post_id = "1343"
-wordpress_url = f"https://www.estrategiaelite.com/wp-json/wp/v2/posts/{post_id}"
-
-def aplicar_colores(valor, tipo):
-    if pd.notna(valor):
-        if tipo == "RSI":
-            if valor >= 70:
-                return f'<span style="color: red; font-weight: bold;">{valor:.2f}</span>'
-            elif valor <= 30:
-                return f'<span style="color: green; font-weight: bold;">{valor:.2f}</span>'
-        elif tipo == "Stoch":
-            if valor >= 80:
-                return f'<span style="color: red; font-weight: bold;">{valor:.2f}</span>'
-            elif valor <= 20:
-                return f'<span style="color: green; font-weight: bold;">{valor:.2f}</span>'
-    return f'<span style="font-weight: bold;">{valor:.2f}</span>'
-
-df_coloreado = df_resultados.copy()
-for col in ["RSI_4H", "RSI_1D", "RSI_1W"]:
-    df_coloreado[col] = df_coloreado[col].apply(lambda x: aplicar_colores(x, "RSI"))
-for col in ["Stoch_4H", "Stoch_1D", "Stoch_1W"]:
-    df_coloreado[col] = df_coloreado[col].apply(lambda x: aplicar_colores(x, "Stoch"))
-
+# **Función para generar tabla HTML**
 def generar_tabla_html(df):
     estilos = """
     <style>
@@ -979,15 +915,24 @@ def generar_tabla_html(df):
     </style>
     """
     return estilos + df.to_html(index=False, escape=False)
+EE
+# **Publicar en WordPress (Post 1343)**
+post_id = "1343"
+wordpress_url = f"https://www.estrategiaelite.com/wp-json/wp/v2/posts/{post_idERE}"
 
 post_data = {
-    "title": f"Confluencias Técnicas - {pd.Timestamp.today().strftime('%Y-%m-%d')}",
-    "content": generar_tabla_html(df_coloreado)
+    "title": f"Aperturas Mensuales - {datetime.today().strftime('%Y-%m-%d')}",
+    "content": generar_tabla_html(df)
 }
 
-response = requests.put(wordpress_url, json=post_data, auth=(os.getenv("WORDPRESS_USER"), os.getenv("WORDPRESS_PASSWORD")))
+response = requests.put(
+    wordpress_url, 
+    json=post_data, 
+    auth=(os.getenv("WORDPRESS_USER"), os.getenv("WORDPRESS_PASSWORD"))
+)
 
 if response.status_code == 200:
-    print("✅ ¡Publicación actualizada!")
+    print("✅ ¡Publicación actualizada en WordPress!")
 else:
-    print(f"❌ Error {response.status_code}: {response.text}")
+    print(f"❌ Error al actualizar la publicación: {response.status_code} - {response.text}")
+
