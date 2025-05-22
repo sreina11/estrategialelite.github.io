@@ -699,7 +699,6 @@ if response.status_code == 200:
 else:
     print(f"❌ Error al actualizar: {response.status_code} - {response.text}")
 
-# BANDAS DE BOLINGER Y OSCILADOR
 import requests
 from tradingview_ta import TA_Handler, Interval
 import pandas as pd
@@ -732,9 +731,9 @@ def analizar_ticker(ticker, exchange):
             handler = TA_Handler(symbol=ticker, exchange=exchange, screener="crypto", interval=intervalo)
             analysis = handler.get_analysis()
             precios[nombre] = {
-                "Precio actual": round(analysis.indicators["close"], 2),
-                "BB_UP": round(analysis.indicators["BB.upper"], 2),
-                "BB_Low": round(analysis.indicators["BB.lower"], 2)
+                "Precio actual": round(analysis.indicators["close"], 5),
+                "BB_UP": round(analysis.indicators["BB.upper"], 5),
+                "BB_Low": round(analysis.indicators["BB.lower"], 5)
             }
             datos_rsi[nombre] = round(analysis.indicators["RSI"], 2)
             datos_stoch[nombre] = round(analysis.indicators["Stoch.K"], 2)
@@ -797,12 +796,17 @@ for ticker, exchange in activos.items():
                 })
 
 # ----------- Generar contenido HTML -----------
-
 def generar_tabla(datos, columnas):
     if not datos:
         return "<p>No hay confluencias.</p>"
     
     df = pd.DataFrame(datos)
+
+    # Redondear valores específicos a 5 decimales
+    for col in ["Precio actual", "Precio BB_UP", "Precio BB_Low"]:
+        if col in df.columns:
+            df[col] = df[col].astype(float).round(5)
+
     estilos = """
     <style>
         table {border-collapse: collapse; width: 100%; font-family: Arial; font-size: 14px;}
@@ -811,9 +815,12 @@ def generar_tabla(datos, columnas):
         tr:nth-child(even) {background-color: #f2f2f2;}
     </style>
     """
+    
     return estilos + df.to_html(index=False, columns=columnas, escape=False)
 
+# Definir fecha actual
 fecha_actual = datetime.datetime.now().strftime('%Y-%m-%d')
+
 contenido = f"<h4>Confluencias de Osciladores y Bandas de Bollinger – {fecha_actual}</h4><br>"
 
 contenido += "<h4>Bandas de Bollinger y RSI</h4><br>"
@@ -829,7 +836,6 @@ for tf in ["Diario", "Semanal", "Mensual"]:
     contenido += generar_tabla(bb_stoch[tf], columnas_stoch)
 
 # ----------- Publicar en WordPress -----------
-
 post_id = "1380"
 url = f"https://estrategiaelite.com/wp-json/wp/v2/posts/{post_id}"
 
@@ -838,16 +844,9 @@ payload = {
     "content": contenido
 }
 
-response = requests.put(
-    url,
-    json=payload,
-    auth=(os.getenv("WORDPRESS_USER"), os.getenv("WORDPRESS_PASSWORD"))
-)
+response = requests.put(url, json=payload, auth=(os.getenv("WORDPRESS_USER"), os.getenv("WORDPRESS_PASSWORD")))
 
-if response.status_code == 200:
-    print("✅ Publicación actualizada correctamente.")
-else:
-    print(f"❌ Error al actualizar: {response.status_code} - {response.text}")
+print("✅ Publicación actualizada correctamente." if response.status_code == 200 else f"❌ Error al actualizar: {response.status_code} - {response.text}")
 
 # APERTURAS MENSUALES
 import requests
