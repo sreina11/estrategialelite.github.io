@@ -945,24 +945,25 @@ df_resultados = pd.DataFrame(resultados)
 post_id = "1343"
 wordpress_url = f"https://www.estrategiaelite.com/wp-json/wp/v2/posts/{post_id}"
 
-# **Función para aplicar formato de colores y redondear valores**
 def aplicar_colores(valor, tipo):
     if pd.notna(valor):
-        if tipo == "RSI" or tipo == "Stoch":
-            valor = round(valor, 2)  # Redondear RSI y Estocástico a 2 decimales
-            if tipo == "RSI":
-                if valor >= 70:
-                    return f'<span style="color: red; font-weight: bold;">{valor:.2f}</span>'  # Sobrecompra
-                elif valor <= 30:
-                    return f'<span style="color: green; font-weight: bold;">{valor:.2f}</span>'  # Sobreventa
-            elif tipo == "Stoch":
-                if valor >= 80:
-                    return f'<span style="color: red; font-weight: bold;">{valor:.2f}</span>'  # Sobrecompra
-                elif valor <= 20:
-                    return f'<span style="color: green; font-weight: bold;">{valor:.2f}</span>'  # Sobreventa
-        else:
-            valor = round(valor, 5)  # Mantener precios con 5 decimales
-    return f'<span style="font-weight: bold;">{valor:.5f}</span>' if tipo != "RSI" and tipo != "Stoch" else f'<span style="font-weight: bold;">{valor:.2f}</span>'
+        if tipo == "RSI":
+            if valor >= 70:
+                return f'<span style="color: red; font-weight: bold;">{valor:.5f}</span>'
+            elif valor <= 30:
+                return f'<span style="color: green; font-weight: bold;">{valor:.5f}</span>'
+        elif tipo == "Stoch":
+            if valor >= 80:
+                return f'<span style="color: red; font-weight: bold;">{valor:.5f}</span>'
+            elif valor <= 20:
+                return f'<span style="color: green; font-weight: bold;">{valor:.5f}</span>'
+    return f'<span style="font-weight: bold;">{valor:.5f}</span>'
+
+df_coloreado = df_resultados.copy()
+for col in ["RSI_4H", "RSI_1D", "RSI_1W"]:
+    df_coloreado[col] = df_coloreado[col].apply(lambda x: aplicar_colores(x, "RSI"))
+for col in ["Stoch_4H", "Stoch_1D", "Stoch_1W"]:
+    df_coloreado[col] = df_coloreado[col].apply(lambda x: aplicar_colores(x, "Stoch"))
 
 def generar_tabla_html(df):
     estilos = """
