@@ -886,8 +886,28 @@ def get_current_price(symbol):
 
     return float(price[-1])
 
+# **Funciones para calcular RSI y Estocástico**
+def calculate_rsi(df, period=14):
+    if df.empty:
+        return None
+    delta = df["Close"].diff()
+    gain = delta.where(delta > 0, 0).rolling(window=period).mean()
+    loss = -delta.where(delta < 0, 0).rolling(window=period).mean()
+    rs = gain / loss
+    rsi = 100 - (100 / (1 + rs))
+    return float(rsi.iloc[-1]) if not rsi.empty else None
+
+def calculate_stoch(df, period=14):
+    if df.empty:
+        return None
+    lowest_low = df["Low"].rolling(window=period).min()
+    highest_high = df["High"].rolling(window=period).max()
+    stoch = ((df["Close"] - lowest_low) / (highest_high - lowest_low)) * 100
+    return float(stoch.iloc[-1]) if not stoch.empty else None
+
 # **Obtener y filtrar datos**
-filtered_data = []
+filtered_rsi = []
+filtered_stoch = []
 
 for ticker, yahoo_symbol in symbols.items():
     monthly_opens = get_monthly_open(yahoo_symbol)
@@ -900,12 +920,37 @@ for ticker, yahoo_symbol in symbols.items():
         rango = ((current_price - open_price) / open_price) * 100
 
         if abs(rango) <= 1:  # ±1%
-            filtered_data.append([ticker, current_price, open_price, date, round(rango, 2)])
+            df_4h = yf.download(yahoo_symbol, period="7d", interval="4h")
+            df_daily = yf.download(yahoo_symbol, period="6mo", interval="1d")
+            df_weekly = yf.download(yahoo_symbol, period="3y", interval="1wk")
 
-# **Crear DataFrame con los resultados**
-df = pd.DataFrame(filtered_data, columns=["Symbol", "Current Price", "Monthly Open", "Fecha", "Rango (%)"])
+            rsi_4h = calculate_rsi(df_4h)
+            rsi_d = calculate_rsi(df_daily)
+            rsi_w = calculate_rsi(df_weekly)
 
-# **Función para generar tabla HTML**
+            stoch_4h = calculate_stoch(df_4h)
+            stoch_d = calculate_stoch(df_daily)
+            stoch_w = calculate_stoch(df_weekly)
+
+            # **Filtrar activos con RSI extremo**
+            if rsi_4h is not None and rsi_d is not None and rsi_w is not None:
+                if rsi_4h <= 30 or rsi_4h >= 70 or rsi_d <= 30 or rsi_d >= 70 or rsi_w <= 30 or rsi_w >= 70:
+                    filtered_rsi.append([ticker, current_price, open_price, date, round(rango, 2), rsi_4h, rsi_d, rsi_w])
+
+            # **Filtrar activos con Estocástico extremo**
+            if stoch_4h is not None and stoch_d is not None and stoch_w is not None:
+                if stoch_4h <= 20 or stoch_4h >= 80 or stoch_d <= 20 or stoch_d >= 80 or stoch_w <= 20 or stoch_w >= 80:
+                    filtered_stoch.append([ticker, current_price, open_price, date, round(rango, 2), stoch_4h, stoch_d, stoch_w])
+
+# **Crear DataFrames con los resultados**
+df_rsi = pd.DataFrame(filtered_rsi, columns=["Symbol", "Current Price", "Monthly Open", "Fecha", "Rango (%)", "RSI_4H", "RSI_Diario", "RSI_Semanal"])
+df_stoch = pd.DataFrame(filtered_stoch, columns=["Symbol", "Current Price", "Monthly Open", "Fecha", "Rango (%)", "STOCH_4H", "STOCH_Diario", "STOCH_Semanal"])
+
+# **Publicar en WordPress (Post 1343)**
+post_id = "1343"
+wordpress_url = f"https://www.estrategiaelite.com/wp-json/wp/v2/posts/{post_id}"
+
+# **Generar tabla HTML**
 def generar_tabla_html(df):
     estilos = """
     <style>
@@ -916,13 +961,10 @@ def generar_tabla_html(df):
     """
     return estilos + df.to_html(index=False, escape=False)
 
-# **Publicar en WordPress (Post 1343)**
-post_id = "1343"
-wordpress_url = f"https://www.estrategiaelite.com/wp-json/wp/v2/posts/{post_id}"
-
+# **Publicar en WordPress**
 post_data = {
-    "title": f"Aperturas Mensuales - {datetime.today().strftime('%Y-%m-%d')}",
-    "content": generar_tabla_html(df)
+    "title": f"Aperturas Mensuales con RSI y Estocástico - {datetime.today().strftime('%Y-%m-%d')}",
+    "content": f"<h2>APERTURA + RSI</h2>{generar_tabla_html(df_rsi)}<h2>APERTURA + STOCH</h2>{generar_tabla_html(df_stoch)}"
 }
 
 response = requests.put(
@@ -935,4 +977,5 @@ if response.status_code == 200:
     print("✅ ¡Publicación actualizada en WordPress!")
 else:
     print(f"❌ Error al actualizar la publicación: {response.status_code} - {response.text}")
+
 
