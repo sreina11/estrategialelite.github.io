@@ -918,7 +918,7 @@ def generar_tabla_html(df):
 
 # **Publicar en WordPress (Post 1343)**
 post_id = "1343"
-wordpress_url = f"https://www.estrategiaelite.com/wp-json/wp/v2/posts/{post_idERE}"
+wordpress_url = f"https://www.estrategiaelite.com/wp-json/wp/v2/posts/{post_id}"
 
 post_data = {
     "title": f"Aperturas Mensuales - {datetime.today().strftime('%Y-%m-%d')}",
