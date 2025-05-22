@@ -698,3 +698,153 @@ if response.status_code == 200:
     print("✅ Publicación actualizada correctamente.")
 else:
     print(f"❌ Error al actualizar: {response.status_code} - {response.text}")
+
+# BANDAS DE BOLINGER Y OSCILADOR
+import requests
+from tradingview_ta import TA_Handler, Interval
+import pandas as pd
+import datetime
+import os
+
+# ----------- Configuración de activos y temporalidades -----------
+activos = {
+    "BTCUSDT": "BINANCE", "ETHUSDT": "BINANCE", "XRPUSDT": "BINANCE",
+    "BNBUSDT": "BINANCE", "SOLUSDT": "BINANCE", "DOGEUSDT": "BINANCE",
+    "ADAUSDT": "BINANCE", "AVAXUSDT": "BINANCE", "XLMUSDT": "BINANCE",
+    "SHIBUSDT": "BINANCE", "LINKUSDT": "BINANCE", "SUIUSDT": "BINANCE",
+    "WAXPUSDT": "BINANCE", "PAXGUSDT": "BINANCE"
+}
+
+temporalidades = {
+    "Diario": Interval.INTERVAL_1_DAY,
+    "Semanal": Interval.INTERVAL_1_WEEK,
+    "Mensual": Interval.INTERVAL_1_MONTH
+}
+
+# ----------- Función de análisis por activo y temporalidad -----------
+def analizar_ticker(ticker, exchange):
+    precios = {}
+    datos_rsi = {}
+    datos_stoch = {}
+
+    for nombre, intervalo in temporalidades.items():
+        try:
+            handler = TA_Handler(symbol=ticker, exchange=exchange, screener="crypto", interval=intervalo)
+            analysis = handler.get_analysis()
+            precios[nombre] = {
+                "Precio actual": round(analysis.indicators["close"], 2),
+                "BB_UP": round(analysis.indicators["BB.upper"], 2),
+                "BB_Low": round(analysis.indicators["BB.lower"], 2)
+            }
+            datos_rsi[nombre] = round(analysis.indicators["RSI"], 2)
+            datos_stoch[nombre] = round(analysis.indicators["Stoch.K"], 2)
+        except Exception as e:
+            print(f"Error en {ticker} - {nombre}: {e}")
+            precios[nombre] = {"Precio actual": None, "BB_UP": None, "BB_Low": None}
+            datos_rsi[nombre] = None
+            datos_stoch[nombre] = None
+
+    try:
+        handler_4h = TA_Handler(symbol=ticker, exchange=exchange, screener="crypto", interval=Interval.INTERVAL_4_HOURS)
+        analysis_4h = handler_4h.get_analysis()
+        datos_rsi["4H"] = round(analysis_4h.indicators["RSI"], 2)
+        datos_stoch["4H"] = round(analysis_4h.indicators["Stoch.K"], 2)
+    except:
+        datos_rsi["4H"] = None
+        datos_stoch["4H"] = None
+
+    return precios, datos_rsi, datos_stoch
+
+# ----------- Recolectar datos en tiempo real -----------
+bb_rsi = {"Diario": [], "Semanal": [], "Mensual": []}
+bb_stoch = {"Diario": [], "Semanal": [], "Mensual": []}
+
+for ticker, exchange in activos.items():
+    precios, rsi, stoch = analizar_ticker(ticker, exchange)
+
+    for timeframe in temporalidades.keys():
+        p = precios[timeframe]
+
+        if p["Precio actual"] is not None:
+            # Confluencias BB + RSI
+            if (p["Precio actual"] >= p["BB_UP"] or p["Precio actual"] <= p["BB_Low"]) and (
+                rsi["4H"] >= 70 or rsi["4H"] <= 30 or rsi[timeframe] >= 70 or rsi[timeframe] <= 30
+            ):
+                bb_rsi[timeframe].append({
+                    "Ticker": ticker,
+                    "Precio actual": p["Precio actual"],
+                    "Precio BB_UP": p["BB_UP"],
+                    "Precio BB_Low": p["BB_Low"],
+                    "RSI_4H": rsi["4H"],
+                    "RSI Diario": rsi.get("Diario"),
+                    "RSI Semanal": rsi.get("Semanal"),
+                    "RSI Mensual": rsi.get("Mensual")
+                })
+
+            # Confluencias BB + Estocástico
+            if (p["Precio actual"] >= p["BB_UP"] or p["Precio actual"] <= p["BB_Low"]) and (
+                stoch["4H"] >= 80 or stoch["4H"] <= 20 or stoch[timeframe] >= 80 or stoch[timeframe] <= 20
+            ):
+                bb_stoch[timeframe].append({
+                    "Ticker": ticker,
+                    "Precio actual": p["Precio actual"],
+                    "Precio BB_UP": p["BB_UP"],
+                    "Precio BB_Low": p["BB_Low"],
+                    "STOCH_4H": stoch["4H"],
+                    "STOCH Diario": stoch.get("Diario"),
+                    "STOCH Semanal": stoch.get("Semanal"),
+                    "STOCH Mensual": stoch.get("Mensual")
+                })
+
+# ----------- Generar contenido HTML -----------
+
+def generar_tabla(datos, columnas):
+    if not datos:
+        return "<p>No hay confluencias.</p>"
+    
+    df = pd.DataFrame(datos)
+    estilos = """
+    <style>
+        table {border-collapse: collapse; width: 100%; font-family: Arial; font-size: 14px;}
+        th {border: 1px solid #ccc; padding: 6px; background-color: #004080; color: white;}
+        td {border: 1px solid #ccc; padding: 6px; text-align: center;}
+        tr:nth-child(even) {background-color: #f2f2f2;}
+    </style>
+    """
+    return estilos + df.to_html(index=False, columns=columnas, escape=False)
+
+fecha_actual = datetime.datetime.now().strftime('%Y-%m-%d')
+contenido = f"<h4>Confluencias de Osciladores y Bandas de Bollinger – {fecha_actual}</h4><br>"
+
+contenido += "<h4>Bandas de Bollinger y RSI</h4><br>"
+for tf in ["Diario", "Semanal", "Mensual"]:
+    contenido += f"<h5>{tf}</h5>"
+    columnas_rsi = ["Ticker", "Precio actual", "Precio BB_UP", "Precio BB_Low", "RSI_4H", "RSI Diario", "RSI Semanal", "RSI Mensual"]
+    contenido += generar_tabla(bb_rsi[tf], columnas_rsi)
+
+contenido += "<h4>Bandas de Bollinger y Estocástico</h4><br>"
+for tf in ["Diario", "Semanal", "Mensual"]:
+    contenido += f"<h5>{tf}</h5>"
+    columnas_stoch = ["Ticker", "Precio actual", "Precio BB_UP", "Precio BB_Low", "STOCH_4H", "STOCH Diario", "STOCH Semanal", "STOCH Mensual"]
+    contenido += generar_tabla(bb_stoch[tf], columnas_stoch)
+
+# ----------- Publicar en WordPress -----------
+
+post_id = "1380"
+url = f"https://estrategiaelite.com/wp-json/wp/v2/posts/{post_id}"
+
+payload = {
+    "title": f"Confluencias de Osciladores y Bandas de Bollinger – {fecha_actual}",
+    "content": contenido
+}
+
+response = requests.put(
+    url,
+    json=payload,
+    auth=(os.getenv("WORDPRESS_USER"), os.getenv("WORDPRESS_PASSWORD"))
+)
+
+if response.status_code == 200:
+    print("✅ Publicación actualizada correctamente.")
+else:
+    print(f"❌ Error al actualizar: {response.status_code} - {response.text}")
