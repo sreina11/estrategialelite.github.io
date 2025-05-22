@@ -849,32 +849,36 @@ response = requests.put(url, json=payload, auth=(os.getenv("WORDPRESS_USER"), os
 print("✅ Publicación actualizada correctamente." if response.status_code == 200 else f"❌ Error al actualizar: {response.status_code} - {response.text}")
 
 # APERTURAS
-
 import requests
 import os
 import pandas as pd
-import ccxt
 from datetime import datetime, timedelta
 
-# **Definir el intercambio y los activos**
-exchange = ccxt.binance()
-tickers = ["BTC/USDT", "ETH/USDT", "XRP/USDT", "BNB/USDT", "SOL/USDT", "DOGE/USDT",
-           "ADA/USDT", "AVAX/USDT", "XLM/USDT", "SHIB/USDT", "LINK/USDT", "SUI/USDT",
-           "WAXP/USDT", "ARPA/USDT"]
+# **Lista de activos**
+activos = ["BTCUSDT", "ETHUSDT", "XRPUSDT", "BNBUSDT", "SOLUSDT", "DOGEUSDT",
+           "ADAUSDT", "AVAXUSDT", "XLMUSDT", "SHIBUSDT", "LINKUSDT", "SUIUSDT",
+           "WAXPUSDT", "PAXGUSDT"]
 
-# **Definir el rango de fechas**
+# **URL de la API de Binance**
+BINANCE_URL = "https://api.binance.com/api/v3/klines"
+
+# **Definir rango de fechas**
 end_date = datetime.today()
 start_date = end_date - timedelta(days=180)
 start_timestamp = int(start_date.timestamp() * 1000)
 
-# **Función para obtener datos históricos**
-def get_historical_prices(symbol, timeframe):
+# **Función para obtener datos históricos desde Binance**
+def get_historical_prices(symbol, interval):
     try:
-        ohlcv = exchange.fetch_ohlcv(symbol, timeframe=timeframe, since=start_timestamp, limit=180)
-        if not ohlcv:
-            print(f"⚠️ No se encontraron datos para {symbol}")
-            return None
-        df = pd.DataFrame(ohlcv, columns=["timestamp", "open", "high", "low", "close", "volume"])
+        params = {"symbol": symbol, "interval": interval, "startTime": start_timestamp, "limit": 180}
+        response = requests.get(BINANCE_URL, params=params)
+        response.raise_for_status()
+        data = response.json()
+        
+        df = pd.DataFrame(data, columns=["timestamp", "open", "high", "low", "close", "volume", 
+                                         "close_time", "quote_asset_volume", "trades", "taker_buy_base", 
+                                         "taker_buy_quote", "ignore"])
+        df = df[["timestamp", "open", "high", "low", "close"]].astype(float)
         df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
         df.set_index("timestamp", inplace=True)
         return df
@@ -882,27 +886,27 @@ def get_historical_prices(symbol, timeframe):
         print(f"❌ Error al obtener datos de {symbol}: {e}")
         return None
 
-# **Funciones para indicadores técnicos**
+# **Funciones para calcular RSI y Estocástico**
 def calculate_rsi(df, period=14):
     delta = df["close"].diff()
-    gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
-    loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+    gain = delta.where(delta > 0, 0).rolling(window=period).mean()
+    loss = -delta.where(delta < 0, 0).rolling(window=period).mean()
     rs = gain / loss
-    return round(100 - (100 / (1 + rs)), 2)
+    return round(100 - (100 / (1 + rs)).iloc[-1], 2)
 
 def calculate_stoch(df, period=14):
     lowest_low = df["low"].rolling(window=period).min()
     highest_high = df["high"].rolling(window=period).max()
     stoch = ((df["close"] - lowest_low) / (highest_high - lowest_low)) * 100
-    return round(stoch, 2)
+    return round(stoch.iloc[-1], 2)
 
-# **Procesar activos**
+# **Procesar cada activo**
 resultados = []
 
-for ticker in tickers:
-    df_daily = get_historical_prices(ticker, "1d")
-    df_4h = get_historical_prices(ticker, "4h")
-    df_weekly = get_historical_prices(ticker, "1w")
+for activo in activos:
+    df_daily = get_historical_prices(activo, "1d")
+    df_4h = get_historical_prices(activo, "4h")
+    df_weekly = get_historical_prices(activo, "1w")
 
     if df_daily is None or df_4h is None or df_weekly is None:
         continue
@@ -915,19 +919,19 @@ for ticker in tickers:
         diferencia = round(((precio_actual - apertura_mensual) / apertura_mensual) * 100, 5)
 
         if -1 <= diferencia <= 1:
-            rsi_4h = calculate_rsi(df_4h).iloc[-1]
-            rsi_1d = calculate_rsi(df_daily).iloc[-1]
-            rsi_1w = calculate_rsi(df_weekly).iloc[-1]
+            rsi_4h = calculate_rsi(df_4h)
+            rsi_1d = calculate_rsi(df_daily)
+            rsi_1w = calculate_rsi(df_weekly)
 
-            stoch_4h = calculate_stoch(df_4h).iloc[-1]
-            stoch_1d = calculate_stoch(df_daily).iloc[-1]
-            stoch_1w = calculate_stoch(df_weekly).iloc[-1]
+            stoch_4h = calculate_stoch(df_4h)
+            stoch_1d = calculate_stoch(df_daily)
+            stoch_1w = calculate_stoch(df_weekly)
 
             if (rsi_4h <= 30 or rsi_4h >= 70 or rsi_1w <= 30 or rsi_1w >= 70) or \
                (stoch_4h <= 20 or stoch_4h >= 80 or stoch_1d <= 20 or stoch_1d >= 80 or stoch_1w <= 20 or stoch_1w >= 80):
 
                 resultados.append({
-                    "Ticker": ticker.replace("/", ""),
+                    "Ticker": activo,
                     "Mes": fecha.strftime('%Y-%m'),
                     "Apertura Mensual": apertura_mensual,
                     "Precio Actual": precio_actual,
@@ -942,7 +946,7 @@ for ticker in tickers:
 
 df_resultados = pd.DataFrame(resultados)
 
-# **Publicar en WordPress**
+# **Publicar en WordPress (Post 1343)**
 post_id = "1343"
 wordpress_url = f"https://www.estrategiaelite.com/wp-json/wp/v2/posts/{post_id}"
 
@@ -950,15 +954,15 @@ def aplicar_colores(valor, tipo):
     if pd.notna(valor):
         if tipo == "RSI":
             if valor >= 70:
-                return f'<span style="color: red; font-weight: bold;">{valor:.5f}</span>'
+                return f'<span style="color: red; font-weight: bold;">{valor:.2f}</span>'
             elif valor <= 30:
-                return f'<span style="color: green; font-weight: bold;">{valor:.5f}</span>'
+                return f'<span style="color: green; font-weight: bold;">{valor:.2f}</span>'
         elif tipo == "Stoch":
             if valor >= 80:
-                return f'<span style="color: red; font-weight: bold;">{valor:.5f}</span>'
+                return f'<span style="color: red; font-weight: bold;">{valor:.2f}</span>'
             elif valor <= 20:
-                return f'<span style="color: green; font-weight: bold;">{valor:.5f}</span>'
-    return f'<span style="font-weight: bold;">{valor:.5f}</span>'
+                return f'<span style="color: green; font-weight: bold;">{valor:.2f}</span>'
+    return f'<span style="font-weight: bold;">{valor:.2f}</span>'
 
 df_coloreado = df_resultados.copy()
 for col in ["RSI_4H", "RSI_1D", "RSI_1W"]:
