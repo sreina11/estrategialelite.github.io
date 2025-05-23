@@ -253,307 +253,114 @@ else:
 
 # Medias moviles 
 
-# MA 200 
-from tradingview_ta import TA_Handler, Interval
 import pandas as pd
-
-# **Lista de activos con su mercado en TradingView**
-assets = {
-    "BTCUSDT": "BINANCE",
-    "ETHUSDT": "BINANCE",
-    "XRPUSDT": "BINANCE",
-    "BNBUSDT": "BINANCE",
-    "SOLUSDT": "BINANCE",
-    "DOGEUSDT": "BINANCE",
-    "ADAUSDT": "BINANCE",
-    "AVAXUSDT": "BINANCE",
-    "XLMUSDT": "BINANCE",
-    "SHIBUSDT": "BINANCE",
-    "LINKUSDT": "BINANCE",
-    "SUIUSDT": "BINANCE",
-    "WAXPUSDT": "BINANCE",
-    "PAXGUSDT": "BINANCE"
-}
-
-
-# **Intervalos de TradingView**
-intervals_ma200 = {
-    "Semanal": Interval.INTERVAL_1_WEEK,
-    "Mensual": Interval.INTERVAL_1_MONTH
-}
-
-# **Diccionario para almacenar los datos**
-data_ma_200 = []
-filtered_ma_200 = []
-
-# **Obtención de datos desde TradingView**
-for asset, market in assets.items():
-    asset_data = {"Activo": asset}
-
-    for period_name, interval in intervals_ma200.items():
-        try:
-            handler = TA_Handler(symbol=asset, exchange=market, screener="crypto", interval=interval)
-            analysis = handler.get_analysis()
-
-            price = analysis.indicators.get("close", None)  # Precio actual
-            ma_200 = analysis.indicators.get("SMA200", None)  # Media móvil de 200
-
-            asset_data[f"Precio_{period_name}"] = price
-            asset_data[f"200_MA_{period_name}"] = ma_200
-
-            # **Calcular el rango en porcentaje**
-            if price and ma_200:
-                rango = ((price - ma_200) / ma_200) * 100
-                asset_data[f"Rango_{period_name}"] = rango
-
-                # **Filtrar si el rango está dentro de ±1%**
-                if -1 <= rango <= 1:
-                    filtered_ma_200.append(asset_data)
-
-        except Exception as e:
-            print(f"Error obteniendo datos para {asset} ({period_name}): {e}")
-
-    data_ma_200.append(asset_data)
-
-# **Conversión a DataFrame**
-df_ma_200 = pd.DataFrame(data_ma_200)
-df_filtrado_ma_200 = pd.DataFrame(filtered_ma_200)  # ✅ Renombrado para evitar conflictos
-
-# **Mostrar todos los datos**
-print("📊 Datos completos de la MA200:")
-print(df_ma_200)
-
-# **Mostrar activos dentro del rango ±1% de la MA200**
-print("\n✅ Activos dentro del rango ±1% de la MA200:")
-print(df_filtrado_ma_200)
-
-# MA 50 
-from tradingview_ta import TA_Handler, Interval
-import pandas as pd
-
-# **Lista de activos con su mercado en TradingView**
-assets = {
-    "BTCUSDT": "BINANCE",
-    "ETHUSDT": "BINANCE",
-    "XRPUSDT": "BINANCE",
-    "BNBUSDT": "BINANCE",
-    "SOLUSDT": "BINANCE",
-    "DOGEUSDT": "BINANCE",
-    "ADAUSDT": "BINANCE",
-    "AVAXUSDT": "BINANCE",
-    "XLMUSDT": "BINANCE",
-    "SHIBUSDT": "BINANCE",
-    "LINKUSDT": "BINANCE",
-    "SUIUSDT": "BINANCE",
-    "WAXPUSDT": "BINANCE",
-    "PAXGUSDT": "BINANCE"
-}
-
-# **Intervalos de TradingView**
-intervals_ma50 = {
-    "Semanal": Interval.INTERVAL_1_WEEK,
-    "Mensual": Interval.INTERVAL_1_MONTH
-}
-
-# **Diccionario para almacenar los datos**
-data_ma_50 = []
-filtered_ma_50 = []
-
-# **Obtención de datos desde TradingView**
-for asset, market in assets.items():
-    asset_data = {"Activo": asset}
-
-    for period_name, interval in intervals_ma50.items():
-        try:
-            handler = TA_Handler(symbol=asset, exchange=market, screener="crypto", interval=interval)
-            analysis = handler.get_analysis()
-
-            price = analysis.indicators.get("close", None)  # Precio actual
-            ma_50 = analysis.indicators.get("SMA50", None)  # Media móvil de 50
-
-            asset_data[f"Precio_{period_name}"] = price
-            asset_data[f"50_MA_{period_name}"] = ma_50
-
-            # **Calcular el rango en porcentaje**
-            if price and ma_50:
-                rango = ((price - ma_50) / ma_50) * 100
-                asset_data[f"Rango_{period_name}"] = rango
-
-                # **Filtrar si el rango está dentro de ±1%**
-                if -1 <= rango <= 1:
-                    filtered_ma_50.append(asset_data)
-
-        except Exception as e:
-            print(f"Error obteniendo datos para {asset} ({period_name}): {e}")
-
-    data_ma_50.append(asset_data)
-
-# **Conversión a DataFrame**
-df_ma_50 = pd.DataFrame(data_ma_50)
-df_filtrado_ma_50 = pd.DataFrame(filtered_ma_50)  # ✅ Renombrado para evitar conflictos
-
-# **Mostrar todos los datos**
-print("📊 Datos completos de la MA50:")
-print(df_ma_50)
-
-# **Mostrar activos dentro del rango ±1% de la MA50**
-print("\n✅ Activos dentro del rango ±1% de la MA50:")
-print(df_filtrado_ma_50)
-
-# MA 2O
-from tradingview_ta import TA_Handler, Interval
-import pandas as pd
-
-# **Lista de activos con su mercado en TradingView**
-assets = {
-    "BTCUSDT": "BINANCE",
-    "ETHUSDT": "BINANCE",
-    "XRPUSDT": "BINANCE",
-    "BNBUSDT": "BINANCE",
-    "SOLUSDT": "BINANCE",
-    "DOGEUSDT": "BINANCE",
-    "ADAUSDT": "BINANCE",
-    "AVAXUSDT": "BINANCE",
-    "XLMUSDT": "BINANCE",
-    "SHIBUSDT": "BINANCE",
-    "LINKUSDT": "BINANCE",
-    "SUIUSDT": "BINANCE",
-    "WAXPUSDT": "BINANCE",
-    "PAXGUSDT": "BINANCE"
-}
-
-
-# **Intervalos de TradingView**
-intervals_ma20 = {
-    "Semanal": Interval.INTERVAL_1_WEEK,
-    "Mensual": Interval.INTERVAL_1_MONTH
-}
-
-# **Diccionario para almacenar los datos**
-data_ma_20 = []
-filtered_ma_20 = []
-
-# **Obtención de datos desde TradingView**
-for asset, market in assets.items():
-    asset_data = {"Activo": asset}
-
-    for period_name, interval in intervals_ma20.items():
-        try:
-            handler = TA_Handler(symbol=asset, exchange=market, screener="crypto", interval=interval)
-            analysis = handler.get_analysis()
-
-            price = analysis.indicators.get("close", None)  # Precio actual
-            ma_20 = analysis.indicators.get("SMA20", None)  # Media móvil de 20
-
-            asset_data[f"Precio_{period_name}"] = price
-            asset_data[f"20_MA_{period_name}"] = ma_20
-
-            # **Calcular el rango en porcentaje**
-            if price and ma_20:
-                rango = ((price - ma_20) / ma_20) * 100
-                asset_data[f"Rango_{period_name}"] = rango
-
-                # **Filtrar si el rango está dentro de ±1%**
-                if -1 <= rango <= 1:
-                    filtered_ma_20.append(asset_data)
-
-        except Exception as e:
-            print(f"Error obteniendo datos para {asset} ({period_name}): {e}")
-
-    data_ma_20.append(asset_data)
-
-# **Conversión a DataFrame**
-df_ma_20 = pd.DataFrame(data_ma_20)
-df_filtrado_ma_20 = pd.DataFrame(filtered_ma_20)  # ✅ Renombrado para evitar conflictos
-
-# **Mostrar todos los datos**
-print("📊 Datos completos de la MA20:")
-print(df_ma_20)
-
-# **Mostrar activos dentro del rango ±1% de la MA20**
-print("\n✅ Activos dentro del rango ±1% de la MA20:")
-print(df_filtrado_ma_20)
-
-# CONFLUENCIAS MEDIAS MOVILES Y RSI
-
-from tradingview_ta import TA_Handler, Interval
-import pandas as pd
-import datetime
 import requests
-import os  # Para autenticación en WordPress
+import os
+from datetime import datetime
+from requests.auth import HTTPBasicAuth
+from tradingview_ta import TA_Handler, Interval
 
-# Activos y mercado
-activos = {
+# **Lista de activos**
+assets = {
     "BTCUSDT": "BINANCE", "ETHUSDT": "BINANCE", "XRPUSDT": "BINANCE", "BNBUSDT": "BINANCE",
     "SOLUSDT": "BINANCE", "DOGEUSDT": "BINANCE", "ADAUSDT": "BINANCE", "AVAXUSDT": "BINANCE",
     "XLMUSDT": "BINANCE", "SHIBUSDT": "BINANCE", "LINKUSDT": "BINANCE", "SUIUSDT": "BINANCE",
     "WAXPUSDT": "BINANCE", "PAXGUSDT": "BINANCE"
 }
 
-# Intervalos de medias móviles
-intervalos_ma = {
+# **Intervalos de medias móviles**
+intervals_ma = {
     "Semanal": Interval.INTERVAL_1_WEEK,
     "Mensual": Interval.INTERVAL_1_MONTH
 }
 
-# Diccionario para almacenar los datos filtrados
-data_filtrada = []
+# **Intervalos de osciladores**
+intervals_osc = {
+    "4H": Interval.INTERVAL_4_HOURS,
+    "1D": Interval.INTERVAL_1_DAY,
+    "1W": Interval.INTERVAL_1_WEEK,
+    "1M": Interval.INTERVAL_1_MONTH
+}
 
-# Obtención de datos desde TradingView
-for activo, mercado in activos.items():
-    datos_activo = {"Ticker": activo}
-    cumple_confluencia = False  # Bandera para detectar si el activo cumple con la condición
-
-    for periodo, intervalo in intervalos_ma.items():
+# **Función para obtener medias móviles desde TradingView**
+def get_ma_data(asset, market, ma_type):
+    data = {}
+    for period_name, interval in intervals_ma.items():
         try:
-            handler = TA_Handler(symbol=activo, exchange=mercado, screener="crypto", interval=intervalo)
+            handler = TA_Handler(symbol=asset, exchange=market, screener="crypto", interval=interval)
             analysis = handler.get_analysis()
+            price = analysis.indicators.get("close", None)
+            ma_value = analysis.indicators.get(ma_type, None)
+            rango = ((price - ma_value) / ma_value) * 100 if price and ma_value else None
 
-            precio = analysis.indicators.get("close", None)  # Precio actual
-            ma = analysis.indicators.get("SMA200", None)  # Media móvil de 200
+            if rango is not None and -1 <= rango <= 1:
+                data[period_name] = {
+                    "Ticker": asset,
+                    "Precio": round(price, 4),
+                    f"{ma_type}_{period_name}": round(ma_value, 4),
+                    f"Rango_{period_name}": round(rango, 2)
+                }
+        except Exception:
+            pass
+    return data
 
-            datos_activo[f"Precio_{periodo}"] = round(precio, 2) if precio else None
-            datos_activo[f"MA200_{periodo}"] = round(ma, 2) if ma else None
+# **Función para obtener RSI y Estocástico desde TradingView**
+def get_oscillator_data(asset, market):
+    oscillators = {}
+    for period_name, interval in intervals_osc.items():
+        try:
+            handler = TA_Handler(symbol=asset, exchange=market, screener="crypto", interval=interval)
+            analysis = handler.get_analysis()
+            rsi = analysis.indicators.get("RSI", None)
+            stoch = analysis.indicators.get("Stoch.K", None)
 
-            # Calcular rango en porcentaje
-            if precio and ma:
-                rango = ((precio - ma) / ma) * 100
-                datos_activo[f"Rango_{periodo}"] = round(rango, 2)
+            if rsi is not None:
+                oscillators[f"RSI_{period_name}"] = round(rsi, 2)
+            if stoch is not None:
+                oscillators[f"Stoch_{period_name}"] = round(stoch, 2)
+        except Exception:
+            pass
+    return oscillators
 
-                # Verificar si está dentro de ±1%
-                if -1 <= rango <= 1:
-                    cumple_confluencia = True
+# **Filtrar confluencias**
+filtered_confluences = []
+for asset, market in assets.items():
+    ma_200 = get_ma_data(asset, market, "SMA200")
+    ma_50 = get_ma_data(asset, market, "SMA50")
+    ma_20 = get_ma_data(asset, market, "SMA20")
+    oscillators = get_oscillator_data(asset, market)
 
-        except Exception as e:
-            print(f"Error obteniendo datos para {activo} ({periodo}): {e}")
+    def apply_colors(value, indicator):
+        if value is None:
+            return "<span style='color: gray;'>N/A</span>"
+        if indicator == "RSI" and (value >= 70 or value <= 30):
+            return f'<span style="color: {"red" if value >= 70 else "green"}; font-weight: bold;">{value:.2f}</span>'
+        elif indicator == "Stoch" and (value >= 80 or value <= 20):
+            return f'<span style="color: {"red" if value >= 80 else "green"}; font-weight: bold;">{value:.2f}</span>'
+        return f'<span style="font-weight: bold;">{value:.2f}</span>'
 
-    # Si el activo cumple con la confluencia, se añade a la lista
-    if cumple_confluencia:
-        data_filtrada.append(datos_activo)
+    for ma_type, ma_data in {"MA200": ma_200, "MA50": ma_50, "MA20": ma_20}.items():
+        for period, values in ma_data.items():
+            if f"{ma_type}_{period}" in values:
+                if any(oscillators.get(f"RSI_{p}", None) is not None and (oscillators[f"RSI_{p}"] <= 30 or oscillators[f"RSI_{p}"] >= 70) for p in intervals_osc.keys()) or \
+                   any(oscillators.get(f"Stoch_{p}", None) is not None and (oscillators[f"Stoch_{p}"] <= 20 or oscillators[f"Stoch_{p}"] >= 80) for p in intervals_osc.keys()):
+                    filtered_confluences.append([
+                        values["Ticker"], values["Precio"], values[f"{ma_type}_{period}"], values[f"Rango_{period}"],
+                        apply_colors(oscillators.get("Stoch_4H", None), "Stoch"), apply_colors(oscillators.get("Stoch_1D", None), "Stoch"),
+                        apply_colors(oscillators.get("Stoch_1W", None), "Stoch"), apply_colors(oscillators.get("Stoch_1M", None), "Stoch"),
+                        apply_colors(oscillators.get("RSI_4H", None), "RSI"), apply_colors(oscillators.get("RSI_1D", None), "RSI"),
+                        apply_colors(oscillators.get("RSI_1W", None), "RSI"), apply_colors(oscillators.get("RSI_1M", None), "RSI"),
+                    ])
 
-# Generar tabla HTML
-def generar_tabla_html(df):
-    estilos = """
-    <style>
-        table {border-collapse: collapse; width: 100%; font-family: Arial;}
-        th {background-color: #0073aa; color: white; font-weight: bold; padding: 8px; border: 1px solid #ddd;}
-        td {padding: 8px; border: 1px solid #ddd; text-align: center;}
-        tr:nth-child(even) {background-color: #f9f9f9;}
-    </style>
-    """
-    return estilos + df.to_html(index=False, escape=False)
+df_confluences = pd.DataFrame(filtered_confluences, columns=[
+    "Ticker", "Precio", "MA", "Rango", "Stoch_4H", "Stoch_1D", "Stoch_1W", "Stoch_1M", "RSI_4H", "RSI_1D", "RSI_1W", "RSI_1M"
+])
 
-df_filtrado = pd.DataFrame(data_filtrada)
-html_tabla = generar_tabla_html(df_filtrado) if not df_filtrado.empty else "<p>No hay activos en el rango de ±1%</p>"
-
-# Publicar en WordPress
-post_id = "1339"
-wordpress_url = f"https://estrategiaelite.com/wp-json/wp/v2/posts/{post_id}"
-titulo = f"Activos en el rango de MA200 ({datetime.datetime.now().strftime('%Y-%m-%d')})"
-
+# **Publicar en WordPress (Post 1366)**
+wordpress_url = "https://www.estrategiaelite.com/wp-json/wp/v2/posts/1366"
 post_data = {
-    "title": titulo,
-    "content": html_tabla
+    "title": f"Confluencias MA + Osciladores - {datetime.today().strftime('%Y-%m-%d')}",
+    "content": df_confluences.to_html(index=False) if not df_confluences.empty else "<p>No hay confluencias.</p>"
 }
 
 response = requests.put(
@@ -563,9 +370,10 @@ response = requests.put(
 )
 
 if response.status_code == 200:
-    print("Post actualizado con éxito")
+    print("✅ ¡Publicación actualizada en WordPress!")
 else:
-    print(f"Error al actualizar post: {response.status_code}, {response.text}")
+    print(f"❌ Error al actualizar la publicación: {response.status_code} - {response.text}")
+
 
 # BANDAS DE BOLLINGER Y OSCILADORES
 
