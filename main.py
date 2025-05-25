@@ -1067,110 +1067,88 @@ if response_economia.status_code == 200:
 else:
     print(f"❌ Error al actualizar en WordPress: {response_economia.status_code}, {response_economia.text}")
 
-# TASAS DE INTERES 
-import requests
-from bs4 import BeautifulSoup
-import pandas as pd
 
-# Diccionario con monedas y URLs de Myfxbook
-interest_rates_data = {
-    "USD": "https://www.myfxbook.com/forex-economic-calendar/united-states/fed-interest-rate-decision",
-    "AUD": "https://www.myfxbook.com/forex-economic-calendar/australia/rba-interest-rate-decision",
-    "JPY": "https://www.myfxbook.com/forex-economic-calendar/japan/boj-interest-rate-decision",
-    "GBP": "https://www.myfxbook.com/forex-economic-calendar/united-kingdom/boe-interest-rate-decision",
-    "EUR": "https://www.myfxbook.com/forex-economic-calendar/euro-area/ecb-interest-rate-decision",
-    "CHF": "https://www.myfxbook.com/forex-economic-calendar/switzerland/snb-interest-rate-decision",
-    "CAD": "https://www.myfxbook.com/forex-economic-calendar/canada/boc-interest-rate-decision"
-}
-
-# Selectores CSS para extraer datos
-selectores_css = {
-    "Fecha": 'div:nth-child(3) > div > div:nth-child(3) > div:nth-child(2) > span:nth-child(2)',
-    "Actual": 'div:nth-child(3) > div > div:nth-child(2) > div:nth-child(4) > span:nth-child(2) > span',
-    "Anterior": 'div:nth-child(3) > div > div:nth-child(2) > div:nth-child(2) > span:nth-child(2) > span'
-}
-
-# Lista para almacenar los datos
-data = []
-
-# Extraer datos de cada moneda
-headers = {"User-Agent": "Mozilla/5.0"}
-for moneda, url in interest_rates_data.items():
-    try:
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()  # Verifica si la respuesta es válida (código 200)
-        soup = BeautifulSoup(response.text, "html.parser")
-
-        # Extraer cada valor usando selectores CSS
-        datos_tasa = {
-            "Divisa": moneda,
-            "Tasa Anterior": soup.select_one(selectores_css["Anterior"]).text.strip() if soup.select_one(selectores_css["Anterior"]) else "No disponible",
-            "Tasa Actual": soup.select_one(selectores_css["Actual"]).text.strip() if soup.select_one(selectores_css["Actual"]) else "No disponible",
-            "Próxima Publicación": soup.select_one(selectores_css["Fecha"]).text.strip() if soup.select_one(selectores_css["Fecha"]) else "No disponible"
-        }
-
-        data.append(datos_tasa)
-
-    except requests.exceptions.RequestException as e:
-        print(f"❌ Error al obtener datos para {moneda}: {e}")
-
-# Convertir a DataFrame
-df_rates = pd.DataFrame(data)
-
-# Mostrar el DataFrame en consola
-print(df_rates)
-
-# PUBLICACION DE TASAS DE INTERES
-
-import requests
-import datetime
-import pandas as pd
-import os  # Para manejar variables de entorno
-
-# **ID de WordPress para actualización de tasas de interés**
-post_id_rates = "1125"  # ⚠️ Usa el ID correcto de WordPress
-
-# **URL de la API para actualizar el post**
-wordpress_url_rates = f"https://estrategiaelite.com/wp-json/wp/v2/posts/{post_id_rates}"
-
-# **Diseño de la tabla en HTML**
-def generar_tabla_html(df):
-    estilos = """
-    <style>
-        table {border-collapse: collapse; width: 100%; font-family: Arial;}
-        th, td {border: 1px solid #ddd; padding: 10px; text-align: left;}
-        th {background-color: #0073aa; color: white; font-weight: bold;}
-        tr:nth-child(even) {background-color: #f2f2f2;}
-        tr:hover {background-color: #ddd;}
-    </style>
-    """
-    if df.empty:
-        return "<p style='text-align:center; font-size:16px; font-weight:bold;'>No hay datos disponibles</p>"
-    return estilos + df.to_html(index=False, escape=False)
-
-# **Generar contenido HTML para la publicación**
-contenido_html_rates = generar_tabla_html(df_rates)  # ✅ Usamos el DataFrame correcto
-
-# **Datos de la actualización**
-post_data_rates = {
-    "title": f"Tasas de interés - Actualización {datetime.datetime.now().strftime('%Y-%m-%d')}",
-    "content": contenido_html_rates
-}
-
-# **Ejecutar la solicitud PUT para actualizar el post en WordPress**
-response_rates = requests.put(
-    wordpress_url_rates,
-    json=post_data_rates,
-    auth=(os.getenv("WORDPRESS_USER"), os.getenv("WORDPRESS_PASSWORD"))  # 🔒 Seguridad en GitHub
-)
-
-# **Confirmación del éxito**
-if response_rates.status_code == 200:
-    print("✅ ¡Publicación de tasas de interés actualizada exitosamente en WordPress!")
-else:
-    print(f"❌ Error al actualizar en WordPress: {response_rates.status_code}, {response_rates.text}")
 #---------------------------------------------------------------------------------------------
 
- 
+ import requests
+import datetime
+import os  # Para variables de entorno
+
+# ID del post que se actualizará
+POST_ID = "799"
+
+# URL de la API de WordPress
+WORDPRESS_URL = f"https://estrategiaelite.com/wp-json/wp/v2/posts/{POST_ID}"
+
+# Credenciales de WordPress desde variables de entorno
+WP_USER = os.getenv("WORDPRESS_USER")
+WP_PASSWORD = os.getenv("WORDPRESS_PASSWORD")
+
+# 📅 Obtener la fecha actual
+fecha_actual = datetime.datetime.now().strftime("%Y-%m-%d")
+
+# 🔄 Función para calcular el impacto de los indicadores
+def calcular_impacto():
+    # Aquí debes implementar la lógica basada en tu matriz de impacto
+    # Simulación de resultados para cada mercado
+    impacto = {
+        "Forex (USD frente a pares principales)": "🟠 Medio",
+        "Bonos del Tesoro EE.UU": "🔴 Alto",
+        "Acciones": "🟢 Positivo",
+        "Commodities": "🟠 Medio",
+        "Criptomonedas": "🟡 Neutral"
+    }
+    return impacto
+
+# 🔮 Función para obtener próximos datos económicos
+def obtener_proximos_datos():
+    # Aquí puedes conectar una API o usar tu propio calendario de eventos
+    # Simulación de eventos próximos
+    eventos_proximos = ["Tasa de interés (FED) - Jun 18", "CPI (Inflación) - Jun 11"]
+    return eventos_proximos if eventos_proximos else ["No hay publicaciones próximas"]
+
+# 📊 Generar nuevo contenido en HTML
+impacto = calcular_impacto()
+eventos = obtener_proximos_datos()
+
+nuevo_contenido = f"""
+<h4>Impacto de Indicadores Económicos ({fecha_actual})</h4>
+<ul>
+    <li><strong>Forex (USD frente a pares principales):</strong> {impacto['Forex (USD frente a pares principales)']}</li>
+    <li><strong>Bonos del Tesoro EE.UU:</strong> {impacto['Bonos del Tesoro EE.UU']}</li>
+    <li><strong>Acciones:</strong> {impacto['Acciones']}</li>
+    <li><strong>Commodities:</strong> {impacto['Commodities']}</li>
+    <li><strong>Criptomonedas:</strong> {impacto['Criptomonedas']}</li>
+</ul>
+
+<h4>Próximos Datos Económicos</h4>
+<ul>
+    {"".join([f"<li>{evento}</li>" for evento in eventos])}
+</ul>
+"""
+
+# 🔄 Obtener el contenido actual del post
+response = requests.get(WORDPRESS_URL, auth=(WP_USER, WP_PASSWORD))
+if response.status_code == 200:
+    contenido_actual = response.json().get("content", {}).get("rendered", "")
+    
+    # 📌 Reemplazar solo el contenido dentro del `<div id="impacto_economico">`
+    contenido_modificado = contenido_actual.replace(
+        '<div id="impacto_economico">', f'<div id="impacto_economico">{nuevo_contenido}'
+    )
+
+    # ✏️ Enviar la actualización a WordPress
+    post_data = {"content": contenido_modificado}
+    response_update = requests.put(
+        WORDPRESS_URL, json=post_data, auth=(WP_USER, WP_PASSWORD)
+    )
+
+    if response_update.status_code == 200:
+        print("✅ Se ha actualizado correctamente el análisis en WordPress.")
+    else:
+        print(f"❌ Error al actualizar el post: {response_update.status_code}")
+else:
+    print(f"❌ Error al obtener el contenido actual: {response.status_code}")
+
 
 
