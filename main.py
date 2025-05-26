@@ -1069,6 +1069,114 @@ else:
 
 
 #---------------------------------------------------------------------------------------------
+# ANALISIS MACRO
+import requests
+from bs4 import BeautifulSoup
+import pandas as pd
+import datetime
+import os
 
+# **Configuración de WordPress**
+POST_ID = "1125"
+WORDPRESS_URL = f"https://estrategiaelite.com/wp-json/wp/v2/posts/{POST_ID}"
+WP_USER = os.getenv("WORDPRESS_USER")
+WP_PASSWORD = os.getenv("WORDPRESS_PASSWORD")
+
+# **Lista de indicadores económicos y sus URLs**
+indicadores = {
+    "Tasa de Interés": "https://www.myfxbook.com/forex-economic-calendar/united-states/fed-interest-rate-decision",
+    "PMI": "https://www.myfxbook.com/forex-economic-calendar/united-states/sp-global-manufacturing-pmi",
+    "CPI": "https://www.myfxbook.com/forex-economic-calendar/united-states/inflation-rate-yoy",
+    "PPI": "https://www.myfxbook.com/forex-economic-calendar/united-states/ppi-yoy",
+    "Consumer Confidence": "https://www.myfxbook.com/forex-economic-calendar/united-states/cb-consumer-confidence",
+    "Jobless Claims": "https://www.myfxbook.com/forex-economic-calendar/united-states/initial-jobless-claims",
+    "Non-Farm Payroll": "https://www.myfxbook.com/forex-economic-calendar/united-states/non-farm-payrolls",
+    "GDP": "https://www.myfxbook.com/forex-economic-calendar/united-states/gdp-growth-rate-qoq",
+    "Retail Sales": "https://www.myfxbook.com/forex-economic-calendar/united-states/retail-sales-mom",
+    "Trade Balance": "https://www.myfxbook.com/forex-economic-calendar/united-states/goods-trade-balance"
+}
+
+# **Impacto por clase de activo**
+impacto_matriz = {
+    "Tasa de Interés": {"Forex": 3, "Acciones": -3, "Bonos": -3, "Commodities": -2, "Criptomonedas": -3},
+    "PMI": {"Forex": 2, "Acciones": 3, "Bonos": 2, "Commodities": 1, "Criptomonedas": 2},
+    "CPI": {"Forex": 3, "Acciones": -3, "Bonos": -3, "Commodities": -3, "Criptomonedas": -3},
+    "PPI": {"Forex": 2, "Acciones": 2, "Bonos": -3, "Commodities": 2, "Criptomonedas": 2},
+    "Consumer Confidence": {"Forex": 1, "Acciones": 2, "Bonos": 1, "Commodities": 0, "Criptomonedas": 2},
+    "Jobless Claims": {"Forex": -2, "Acciones": 2, "Bonos": -2, "Commodities": 0, "Criptomonedas": 2},
+    "Non-Farm Payroll": {"Forex": 3, "Acciones": -3, "Bonos": -3, "Commodities": 2, "Criptomonedas": -3},
+    "GDP": {"Forex": 2, "Acciones": 3, "Bonos": 2, "Commodities": 1, "Criptomonedas": 3},
+    "Retail Sales": {"Forex": 2, "Acciones": 3, "Bonos": 2, "Commodities": 1, "Criptomonedas": 2},
+    "Trade Balance": {"Forex": 3, "Acciones": 1, "Bonos": 0, "Commodities": 2, "Criptomonedas": 1}
+}
+
+# **Selectores CSS**
+selectores_css = {
+    "Fecha": 'div:nth-child(3) > div > div:nth-child(3) > div:nth-child(2) > span:nth-child(2)',
+    "Actual": 'div:nth-child(3) > div > div:nth-child(2) > div:nth-child(4) > span:nth-child(2) > span',
+    "Esperado": 'div:nth-child(3) > div > div:nth-child(2) > div:nth-child(3) > span:nth-child(2)'
+}
+
+# **Extraer datos de cada indicador**
+datos = []
+headers = {"User-Agent": "Mozilla/5.0"}
+for indicador, url in indicadores.items():
+    try:
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        actual_raw = soup.select_one(selectores_css["Actual"])
+        esperado_raw = soup.select_one(selectores_css["Esperado"])
+
+        actual = actual_raw.text.strip().replace('%', '').replace('K', '').replace('$', '').replace(',', '') if actual_raw else "No disponible"
+        esperado = esperado_raw.text.strip().replace('%', '').replace('K', '').replace('$', '').replace(',', '') if esperado_raw else "No disponible"
+
+        datos_evento = {
+            "Indicador": indicador,
+            "Fecha": soup.select_one(selectores_css["Fecha"]).text.strip() if soup.select_one(selectores_css["Fecha"]) else "No disponible",
+            "Actual": float(actual) if actual.replace('.', '', 1).isdigit() else "No disponible",
+            "Esperado": float(esperado) if esperado.replace('.', '', 1).isdigit() else "No disponible"
+        }
+
+        datos_evento["Impacto"] = (
+            1 if datos_evento["Actual"] > datos_evento["Esperado"] else
+            -1 if datos_evento["Actual"] < datos_evento["Esperado"] else 0
+        ) if datos_evento["Actual"] != "No disponible" and datos_evento["Esperado"] != "No disponible" else 0
+
+        datos.append(datos_evento)
+
+    except Exception as e:
+        print(f"❌ Error obteniendo datos para {indicador}: {e}")
+
+# **Convertir a DataFrame**
+df_indicadores_economicos = pd.DataFrame(datos)
+
+# **Calcular impacto final por activo**
+impacto_final = {activo: sum(df_indicadores_economicos.apply(lambda x: x["Impacto"] * impacto_matriz[x["Indicador"]][activo], axis=1)) for activo in impacto_matriz["Tasa de Interés"]}
+
+# **Clasificación del impacto**
+def clasificar_impacto(valor):
+    if valor >= 4:
+        return "Positivo Alto"
+    elif 1 <= valor <= 3:
+        return "Positivo Medio"
+    elif valor == 0:
+        return "Neutral"
+    elif -1 >= valor >= -3:
+        return "Negativo Medio"
+    else:
+        return "Negativo Alto"
+
+impacto_clasificado = {activo: clasificar_impacto(valor) for activo, valor in impacto_final.items()}
+
+# **Publicar en WordPress**
+post_data = {"content": f"<div id='impacto_economico'><h4>Impacto Económico ({datetime.datetime.now().strftime('%Y-%m-%d')})</h4><ul>{''.join([f'<li><strong>{activo}:</strong> {impacto_clasificado[activo]}</li>' for activo in impacto_clasificado])}</ul></div>"}
+response = requests.put(WORDPRESS_URL, json=post_data, auth=(WP_USER, WP_PASSWORD))
+
+if response.status_code == 200:
+    print("✅ ¡Post actualizado correctamente en WordPress!")
+else:
+    print(f"❌ Error al actualizar el post: {response.status_code}, {response.text}")
 
 
