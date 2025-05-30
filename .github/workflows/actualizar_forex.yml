@@ -20,10 +20,11 @@ jobs:
       - name: Instalar Dependencias
         run: pip install tradingview_ta pandas requests yfinance beautifulsoup4
 
-      - name: Ejecutar Script
+      - name: Ejecutar Script y Enviar a Telegram
         env:
           WORDPRESS_USER: ${{ secrets.WORDPRESS_USER }}
           WORDPRESS_PASSWORD: ${{ secrets.WORDPRESS_PASSWORD }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}  # Nueva variable para el bot de Telegram
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}  # Nueva variable para el chat de Telegram
         run: python main1.py
+
