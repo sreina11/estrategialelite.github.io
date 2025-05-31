@@ -466,35 +466,6 @@ if response.status_code == 200:
     print("✅ ¡Publicación actualizada exitosamente en WordPress!")
 else:
     print(f"❌ Error al actualizar en WordPress: {response.status_code}, {response.text}")
-import requests
-import os
-
-def enviar_a_telegram(mensaje):
-    """Envía un mensaje a Telegram utilizando las credenciales del bot."""
-    telegram_token = os.getenv("TELEGRAM_BOT_TOKEN")  # Token del bot almacenado en GitHub Secrets o variables de entorno
-    chat_id = os.getenv("TELEGRAM_CHAT_ID")  # ID del chat destino
-
-    if not telegram_token or not chat_id:
-        print("❌ Error: Las credenciales de Telegram no están configuradas correctamente.")
-        return
-
-    url = f"https://api.telegram.org/bot{telegram_token}/sendMessage"
-    data = {
-        "chat_id": chat_id,
-        "text": mensaje,
-        "parse_mode": "HTML"
-    }
-
-    try:
-        response = requests.post(url, json=data)
-        response.raise_for_status()  # Lanza una excepción en caso de error HTTP
-        print("✅ ¡Mensaje enviado exitosamente a Telegram!")
-    except requests.exceptions.RequestException as e:
-        print(f"❌ Error al enviar a Telegram: {e}")
-
-# Envía el post a Telegram
-enviar_a_telegram(contenido_post)
-
 
 # CONFLUENCIAS MEDIAS MOVILES Y OSCILADORES 
 import requests
