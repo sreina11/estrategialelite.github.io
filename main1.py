@@ -767,3 +767,307 @@ if response.status_code == 200:
 else:
     print(f"❌ Error al actualizar post: {response.status_code}, {response.text}")
 
+// POST ANALISIS DE MERCADOS
+
+import requests
+import os
+from bs4 import BeautifulSoup
+
+# Configuración de WordPress
+WORDPRESS_BASE_URL = "https://estrategiaelite.com/wp-json/wp/v2/posts/"
+USERNAME = os.getenv("WORDPRESS_USER")
+PASSWORD = os.getenv("WORDPRESS_PASSWORD")
+
+# Configuración de Telegram
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+
+# Función para obtener contenido de los posts
+def obtener_contenido_post(post_id):
+    url = f"{WORDPRESS_BASE_URL}{post_id}"
+    response = requests.get(url, auth=(USERNAME, PASSWORD))  # Autenticación aquí
+    if response.status_code == 200:
+        post_data = response.json()
+        return post_data.get("content", {}).get("rendered", "")
+    else:
+        print(f"❌ Error al obtener el post {post_id}: {response.status_code}, {response.text}")
+        return None
+
+# IDs de los posts por categoría
+POST_IDS = {
+    "forex": [1151, 1225, 1198],
+    "acciones_indices": [1028, 1032, 1015],
+    "cripto": [1380, 1343, 1366]
+}
+
+# Extraer los posts de cada categoría
+posts = {categoria: {post_id: obtener_contenido_post(post_id) for post_id in ids} for categoria, ids in POST_IDS.items()}
+
+# Función para limpiar el HTML y extraer solo el contenido relevante
+def limpiar_html(contenido_html):
+    soup = BeautifulSoup(contenido_html, "html.parser")
+    for tag in soup(["style", "script"]):
+        tag.extract()
+    return soup.get_text(separator="\n").strip()
+
+# Función para extraer los activos de las tablas
+def extraer_activos(contenido_html):
+    soup = BeautifulSoup(contenido_html, "html.parser")
+    activos = {"sobrecompra": [], "sobreventa": [], "mixtos": []}
+    tablas = soup.find_all("table")
+    
+    if not tablas:
+        print("❌ No se encontraron tablas en el post.")
+        return activos
+
+    for table in tablas:
+        filas = table.find_all("tr")[1:]  # Ignorar la primera fila (encabezados)
+        for fila in filas:
+            columnas = fila.find_all("td")
+
+            # Verificación antes de acceder a índices específicos
+            if len(columnas) < 8:
+                print(f"⚠ Tabla con solo {len(columnas)} columnas. Saltando fila.")
+                continue  # Evitar errores en tablas con formato diferente
+
+            ticker = columnas[0].text.strip()
+
+            # Procesar valores dentro de <span> o texto normal
+            def obtener_valor(columna):
+                texto_limpio = columna.text.strip().replace(",", "").split()
+                if not texto_limpio:  # ✅ Verificación extra
+                    return 0.0  # Valor predeterminado si está vacío
+                return float(texto_limpio[0])
+
+            estocastico_4h = obtener_valor(columnas[4])
+            estocastico_semanal = obtener_valor(columnas[6])
+            estocastico_mensual = obtener_valor(columnas[7])
+
+            # Clasificación según valores de osciladores
+            if estocastico_semanal >= 80 or estocastico_mensual >= 80:
+                activos["sobrecompra"].append(ticker)
+            elif estocastico_semanal <= 20 or estocastico_mensual <= 20:
+                activos["sobreventa"].append(ticker)
+            else:
+                activos["mixtos"].append(ticker)
+
+    return activos
+
+# Procesar los posts y organizar los activos por categoría
+activos_finales = {categoria: {"sobrecompra": [], "sobreventa": [], "mixtos": []} for categoria in POST_IDS}
+
+for categoria, posts_categoria in posts.items():
+    for post_id, contenido in posts_categoria.items():
+        print(f"\n🔎 Procesando post {post_id} ({categoria})...")
+        activos_procesados = extraer_activos(contenido)
+        for clave in activos_finales[categoria]:
+            activos_finales[categoria][clave].extend(activos_procesados[clave])
+
+# Eliminar duplicados
+for categoria in activos_finales:
+    for clave in activos_finales[categoria]:
+        activos_finales[categoria][clave] = list(set(activos_finales[categoria][clave]))
+
+# Generar informe en HTML organizado para WordPress
+informe_html = f"""
+<h2>📊 Análisis de Mercados </h2>
+
+<h3>Forex</h3>
+<h4>📌 En sobrecompra, cerca de posible reversión:</h4>
+<ul>
+    {''.join(f'<li>{activo}</li>' for activo in activos_finales["forex"]["sobrecompra"])}
+</ul>
+
+<h4>📌 En sobreventa, cerca de posible reversión:</h4>
+<ul>
+    {''.join(f'<li>{activo}</li>' for activo in activos_finales["forex"]["sobreventa"])}
+</ul>
+
+<h4>📌 En puntos clave con señales mixtas:</h4>
+<ul>
+    {''.join(f'<li>{activo}</li>' for activo in activos_finales["forex"]["mixtos"])}
+</ul>
+
+<h3>Índices y Acciones</h3>
+<h4>📌 En sobrecompra, cerca de posible reversión:</h4>
+<ul>
+    {''.join(f'<li>{activo}</li>' for activo in activos_finales["acciones_indices"]["sobrecompra"])}
+</ul>
+
+<h4>📌 En sobreventa, cerca de posible reversión:</h4>
+<ul>
+    {''.join(f'<li>{activo}</li>' for activo in activos_finales["acciones_indices"]["sobreventa"])}
+</ul>
+
+<h4>📌 En puntos clave con señales mixtas:</h4>
+<ul>
+    {''.join(f'<li>{activo}</li>' for activo in activos_finales["acciones_indices"]["mixtos"])}
+</ul>
+
+<h3>Criptomonedas</h3>
+<h4>📌 En sobrecompra, cerca de posible reversión:</h4>
+<ul>
+    {''.join(f'<li>{activo}</li>' for activo in activos_finales["cripto"]["sobrecompra"])}
+</ul>
+
+<h4>📌 En sobreventa, cerca de posible reversión:</h4>
+<ul>
+    {''.join(f'<li>{activo}</li>' for activo in activos_finales["cripto"]["sobreventa"])}
+</ul>
+
+<h4>📌 En puntos clave con señales mixtas:</h4>
+<ul>
+    {''.join(f'<li>{activo}</li>' for activo in activos_finales["cripto"]["mixtos"])}
+</ul>
+"""
+
+# Publicar en WordPress
+POST_ID = 2130
+wordpress_url = f"{WORDPRESS_BASE_URL}{POST_ID}"
+response = requests.put(wordpress_url, json={"content": informe_html}, auth=(USERNAME, PASSWORD))
+print("✅ Informe publicado en WordPress" if response.status_code == 200 else f"❌ Error: {response.text}")
+
+# Generar informe en Markdown para Telegram
+informe_texto = f"""
+📊 **Análisis de Mercados**  
+
+### **Forex**  
+📌 **En sobrecompra, cerca de posible reversión:**  
+- {', '.join(activos_finales["forex"]["sobrecompra"])}
+
+📌 **En sobreventa, cerca de posible reversión:**  
+- {', '.join(activos_finales["forex"]["sobreventa"])}
+
+📌 **En puntos clave con señales mixtas:**  
+- {', '.join(activos_finales["forex"]["mixtos"])}
+
+### **Índices y Acciones**  
+📌 **En sobrecompra, cerca de posible reversión:**  
+- {', '.join(activos_finales["acciones_indices"]["sobrecompra"])}
+
+📌 **En sobreventa, cerca de posible reversión:**  
+- {', '.join(activos_finales["acciones_indices"]["sobreventa"])}
+
+📌 **En puntos clave con señales mixtas:**  
+- {', '.join(activos_finales["acciones_indices"]["mixtos"])}
+
+### **Criptomonedas**  
+📌 **En sobrecompra, cerca de posible reversión:**  
+- {', '.join(activos_finales["cripto"]["sobrecompra"])}
+
+📌 **En sobreventa, cerca de posible reversión:**  
+- {', '.join(activos_finales["cripto"]["sobreventa"])}
+
+📌 **En puntos clave con señales mixtas:**  
+- {', '.join(activos_finales["cripto"]["mixtos"])}
+"""
+
+# Enviar el informe a Telegram con Markdown
+telegram_url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+
+telegram_data = {
+    "chat_id": TELEGRAM_CHAT_ID,
+    "text": informe_texto,
+    "parse_mode": "Markdown"
+}
+
+response = requests.post(telegram_url, json=telegram_data)
+
+if response.status_code == 200:
+    print("✅ ¡Informe enviado exitosamente a Telegram con formato correcto!")
+else:
+    print(f"❌ Error al enviar a Telegram: {response.status_code}, {response.text}")
+
+import requests
+import os
+from bs4 import BeautifulSoup
+from datetime import datetime, timedelta
+
+# Configuración de WordPress y Telegram
+WORDPRESS_BASE_URL = "https://estrategiaelite.com/wp-json/wp/v2/posts/"
+USERNAME = os.getenv("WORDPRESS_USER")
+PASSWORD = os.getenv("WORDPRESS_PASSWORD")
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+
+# Función para obtener contenido de los posts
+def obtener_contenido_post(post_id):
+    url = f"{WORDPRESS_BASE_URL}{post_id}"
+    response = requests.get(url, auth=(USERNAME, PASSWORD))
+    if response.status_code == 200:
+        post_data = response.json()
+        return post_data.get("content", {}).get("rendered", "")
+    else:
+        print(f"❌ Error al obtener el post {post_id}: {response.status_code}, {response.text}")
+        return None
+
+# Función para extraer y filtrar eventos por fecha
+def filtrar_eventos(contenido_html, dias_rango, tipo_evento):
+    soup = BeautifulSoup(contenido_html, "html.parser")
+    eventos_futuros = []
+
+    # Obtener la fecha actual
+    fecha_actual = datetime.now()
+    fecha_limite = fecha_actual + timedelta(days=dias_rango)
+
+    # Buscar todas las filas de las tablas
+    for table in soup.find_all("table"):
+        filas = table.find_all("tr")[1:]  # Ignorar encabezados
+        for fila in filas:
+            columnas = fila.find_all("td")
+            if len(columnas) < 2:
+                continue
+
+            nombre_evento = columnas[0].text.strip()
+            fecha_evento = columnas[1].text.strip()
+
+            # Convertir la fecha en formato de datetime
+            try:
+                fecha_dt = datetime.strptime(fecha_evento, "%b %d, %Y")
+                if fecha_actual <= fecha_dt <= fecha_limite:
+                    eventos_futuros.append(f"- {nombre_evento} → {fecha_evento}")
+            except ValueError:
+                print(f"⚠ Error con formato de fecha en evento: {nombre_evento}, intentando otra conversión...")
+
+                # Detectar si la fecha tiene otro formato (Ejemplo: "Jun 18, 18:00")
+                try:
+                    fecha_dt = datetime.strptime(fecha_evento, "%b %d, %H:%M")
+                    fecha_dt = fecha_dt.replace(year=fecha_actual.year)  # Asignar el año actual si falta
+                    if fecha_actual <= fecha_dt <= fecha_limite:
+                        eventos_futuros.append(f"- {nombre_evento} → {fecha_dt.strftime('%b %d, %Y %H:%M')}")
+                except ValueError:
+                    print(f"⚠ No se pudo convertir la fecha de {nombre_evento}, formato desconocido.")
+
+    return eventos_futuros
+
+# Obtener eventos económicos en los próximos 7 días
+post_id_economicos = 1045
+contenido_economicos = obtener_contenido_post(post_id_economicos)
+eventos_economicos = filtrar_eventos(contenido_economicos, 7, "Indicadores Económicos")
+
+# Obtener reportes de ganancias en los próximos 15 días
+post_id_ganancias = 1050  # Reemplaza con el ID correcto del post de reportes de ganancias
+contenido_ganancias = obtener_contenido_post(post_id_ganancias)
+eventos_ganancias = filtrar_eventos(contenido_ganancias, 15, "Reportes de Ganancias")
+
+# Generar mensaje para Telegram
+mensaje_telegram = "📊 **Próximos eventos económicos y reportes de ganancias**\n\n"
+
+if eventos_economicos:
+    mensaje_telegram += "📌 **Indicadores Económicos (Próximos 7 días)**:\n" + "\n".join(eventos_economicos) + "\n\n"
+if eventos_ganancias:
+    mensaje_telegram += "📌 **Reportes de Ganancias (Próximos 15 días)**:\n" + "\n".join(eventos_ganancias) + "\n\n"
+
+# Solo enviar si hay eventos
+if eventos_economicos or eventos_ganancias:
+    telegram_url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    response = requests.post(telegram_url, json={"chat_id": TELEGRAM_CHAT_ID, "text": mensaje_telegram, "parse_mode": "Markdown"})
+
+    if response.status_code == 200:
+        print("✅ ¡Informe enviado exitosamente a Telegram!")
+    else:
+        print(f"❌ Error al enviar a Telegram: {response.status_code}, {response.text}")
+else:
+    print("🚫 No hay eventos próximos, no se envió mensaje a Telegram.")
+
+
