@@ -767,7 +767,7 @@ if response.status_code == 200:
 else:
     print(f"❌ Error al actualizar post: {response.status_code}, {response.text}")
 
-// POST ANALISIS DE MERCADOS
+# POST ANALISIS DE MERCADOS
 
 import requests
 import os
