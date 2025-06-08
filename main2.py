@@ -251,7 +251,86 @@ if response_stoch.status_code == 200:
 else:
     print(f"❌ Error al actualizar el Estocástico: {response_stoch.status_code}, {response_stoch.text}")
 
-# Medias mobiles Precios
+# Medias mobiles Rangos
+import pandas as pd
+from tradingview_ta import TA_Handler, Interval
+
+# Lista de activos
+assets = {
+    "BTCUSDT": "BINANCE", "ETHUSDT": "BINANCE", "XRPUSDT": "BINANCE", "BNBUSDT": "BINANCE",
+    "SOLUSDT": "BINANCE", "DOGEUSDT": "BINANCE", "ADAUSDT": "BINANCE", "AVAXUSDT": "BINANCE",
+    "XLMUSDT": "BINANCE", "SHIBUSDT": "BINANCE", "LINKUSDT": "BINANCE", "SUIUSDT": "BINANCE",
+    "WAXPUSDT": "BINANCE", "PAXGUSDT": "BINANCE"
+}
+
+# Intervalos
+intervals_ma = {
+    "Diario": Interval.INTERVAL_1_DAY,
+    "Semanal": Interval.INTERVAL_1_WEEK,
+    "Mensual": Interval.INTERVAL_1_MONTH
+}
+
+# Tipos de medias móviles
+ma_types = ["SMA20", "SMA50", "SMA200"]
+
+# Función para obtener los rangos
+def get_ma_ranges(asset, market):
+    result = {"Ticker": asset}
+    for ma in ma_types:
+        for label, interval in intervals_ma.items():
+            column_name = f"Rango_{ma}_{label}"
+            try:
+                handler = TA_Handler(symbol=asset, exchange=market, screener="crypto", interval=interval)
+                analysis = handler.get_analysis()
+                price = analysis.indicators.get("close")
+                ma_value = analysis.indicators.get(ma)
+
+                if price is not None and ma_value is not None:
+                    rango = ((price - ma_value) / ma_value) * 100
+                    result[column_name] = round(rango, 2)
+                else:
+                    result[column_name] = None
+            except Exception:
+                result[column_name] = None
+    return result
+
+# Recolectar todos los datos
+data = []
+for asset, market in assets.items():
+    data.append(get_ma_ranges(asset, market))
+
+# Crear DataFrame
+df_rangos = pd.DataFrame(data)
+
+# Mostrar resultado
+print(df_rangos)
+
+import requests
+import os
+from datetime import datetime
+
+# ID del post de WordPress donde se publicará el DataFrame de rangos de medias móviles
+wordpress_url = "https://www.estrategiaelite.com/wp-json/wp/v2/posts/2617"
+
+# Contenido HTML del DataFrame (se publica como tabla HTML)
+post_data = {
+    "title": f"Rangos Medias Móviles - {datetime.today().strftime('%Y-%m-%d')}",
+    "content": df_rangos.to_html(index=False, border=0, justify="center", classes="wp-block-table") if not df_rangos.empty else "<p>No se encontraron datos de medias móviles.</p>"
+}
+
+# Enviar solicitud PUT para actualizar el post
+response = requests.put(
+    wordpress_url,
+    json=post_data,
+    auth=(os.getenv("WORDPRESS_USER"), os.getenv("WORDPRESS_PASSWORD"))
+)
+
+# Verificar respuesta
+if response.status_code == 200:
+    print("✅ ¡Publicación de rangos de medias móviles actualizada en WordPress!")
+else:
+    print(f"❌ Error al actualizar la publicación: {response.status_code} - {response.text}")
+
 # Medias mobiles Precios
 
 import requests
