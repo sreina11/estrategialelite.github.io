@@ -252,57 +252,143 @@ else:
     print(f"❌ Error al actualizar el Estocástico: {response_stoch.status_code}, {response_stoch.text}")
 
 # Medias moviles 
-
-import pandas as pd
 import requests
-import os
+import pandas as pd
+from bs4 import BeautifulSoup
 from datetime import datetime
-from requests.auth import HTTPBasicAuth
-from tradingview_ta import TA_Handler, Interval
+import os
 
-# **Lista de activos**
-assets = {
-    "BTCUSDT": "BINANCE", "ETHUSDT": "BINANCE", "XRPUSDT": "BINANCE", "BNBUSDT": "BINANCE",
-    "SOLUSDT": "BINANCE", "DOGEUSDT": "BINANCE", "ADAUSDT": "BINANCE", "AVAXUSDT": "BINANCE",
-    "XLMUSDT": "BINANCE", "SHIBUSDT": "BINANCE", "LINKUSDT": "BINANCE", "SUIUSDT": "BINANCE",
-    "WAXPUSDT": "BINANCE", "PAXGUSDT": "BINANCE"
+# --- Configuración ---
+WORDPRESS_URL = "https://www.estrategiaelite.com/wp-json/wp/v2"
+POST_ID_OSCILADORES = 1334
+POST_ID_RSI = 1326
+POST_ID_MEDIAS_MOVILES = 2617
+POST_ID_DESTINO = 1366
+USERNAME = os.getenv("WORDPRESS_USER")
+PASSWORD = os.getenv("WORDPRESS_PASSWORD")
+
+# --- Función para obtener contenido HTML de un post ---
+def obtener_contenido_post(post_id):
+    url = f"{WORDPRESS_URL}/posts/{post_id}"
+    response = requests.get(url, auth=(USERNAME, PASSWORD))
+    if response.status_code == 200:
+        return response.json().get("content", {}).get("rendered", "")
+    else:
+        print(f"❌ Error al obtener el post {post_id}: {response.status_code}")
+        return ""
+
+# --- Extraer la primera tabla HTML como DataFrame ---
+def extraer_dataframe(html_content):
+    soup = BeautifulSoup(html_content, "html.parser")
+    table = soup.find("table")
+    if table:
+        return pd.read_html(str(table))[0]
+    else:
+        return pd.DataFrame()
+
+# --- Obtener y limpiar los datos fuente ---
+df_osciladores = extraer_dataframe(obtener_contenido_post(POST_ID_OSCILADORES))
+df_rsi = extraer_dataframe(obtener_contenido_post(POST_ID_RSI))
+df_medias = extraer_dataframe(obtener_contenido_post(POST_ID_MEDIAS_MOVILES))
+
+# --- Validación ---
+if df_osciladores.empty or df_rsi.empty or df_medias.empty:
+    print("❌ Uno o más DataFrames están vacíos. Revisa los posts fuente.")
+    exit()
+
+# --- Limpieza básica ---
+for df in [df_osciladores, df_rsi, df_medias]:
+    df.columns = [col.strip() for col in df.columns]
+    for col in df.columns[1:]:
+        df[col] = pd.to_numeric(df[col], errors='coerce')
+
+# --- Identificar condiciones Estocástico ---
+condiciones_stoch = []
+for _, row in df_osciladores.iterrows():
+    ticker = row["Ticker"]
+    for col in df_osciladores.columns[1:]:
+        if "Stoch" in col:
+            val = row[col]
+            if pd.notnull(val):
+                if val >= 80:
+                    condiciones_stoch.append({"Ticker": ticker, "Oscilador": col, "Valor": val, "Condición": "Sobrecomprado"})
+                elif val <= 20:
+                    condiciones_stoch.append({"Ticker": ticker, "Oscilador": col, "Valor": val, "Condición": "Sobrevendido"})
+
+df_stoch = pd.DataFrame(condiciones_stoch)
+
+# --- Identificar condiciones RSI ---
+condiciones_rsi = []
+for _, row in df_rsi.iterrows():
+    ticker = row["Ticker"]
+    for col in df_rsi.columns[1:]:
+        val = row[col]
+        if pd.notnull(val):
+            if val >= 70:
+                condiciones_rsi.append({"Ticker": ticker, "Oscilador": col, "Valor": val, "Condición": "Sobrecomprado"})
+            elif val <= 30:
+                condiciones_rsi.append({"Ticker": ticker, "Oscilador": col, "Valor": val, "Condición": "Sobrevendido"})
+
+df_rsi_cond = pd.DataFrame(condiciones_rsi)
+
+# --- Filtrar medias móviles ±1% ---
+df_medias_filtrado = df_medias.copy()
+for col in df_medias.columns[1:]:
+    df_medias_filtrado[col] = df_medias[col].apply(lambda x: x if pd.notnull(x) and abs(x) <= 1 else None)
+
+# --- Función para obtener confluencias ---
+def obtener_confluencias(df_osc, tipo="Estocástico"):
+    confluencias = []
+    for _, osc in df_osc.iterrows():
+        ticker = osc["Ticker"]
+        if ticker in df_medias_filtrado["Ticker"].values:
+            row_ma = df_medias_filtrado[df_medias_filtrado["Ticker"] == ticker]
+            for col in df_medias_filtrado.columns[1:]:
+                val_ma = row_ma[col].values[0]
+                if pd.notnull(val_ma):
+                    confluencias.append({
+                        "Ticker": ticker,
+                        f"{tipo}": f"{osc['Oscilador']} = {osc['Valor']:.2f} ({osc['Condición']})",
+                        "Media Móvil": f"{col} = {val_ma:.2f} (≈1%) ✅"
+                    })
+    return pd.DataFrame(confluencias)
+
+df_confluencias_stoch = obtener_confluencias(df_stoch, "Estocástico")
+df_confluencias_rsi = obtener_confluencias(df_rsi_cond, "RSI")
+
+# --- Generar HTML limpio ---
+def generar_html(df, titulo):
+    estilo = """
+    <style>
+    table {border-collapse: collapse; width: 100%; font-family: Arial;}
+    th, td {border: 1px solid #ddd; padding: 8px; text-align: center;}
+    th {background-color: #0073aa; color: white;}
+    </style>
+    """
+    return f"<h3>{titulo}</h3>" + estilo + df.to_html(index=False)
+
+# --- Armar contenido final ---
+contenido_final = ""
+if not df_confluencias_stoch.empty:
+    contenido_final += generar_html(df_confluencias_stoch, "Estocástico + Media Móvil")
+if not df_confluencias_rsi.empty:
+    contenido_final += generar_html(df_confluencias_rsi, "RSI + Media Móvil")
+if df_confluencias_stoch.empty and df_confluencias_rsi.empty:
+    contenido_final = "<p>No hay confluencias detectadas.</p>"
+
+# --- Actualizar el post en WordPress ---
+url_actualizar = f"{WORDPRESS_URL}/posts/{POST_ID_DESTINO}"
+datos_post = {
+    "title": f"Confluencias MA + Osciladores - {datetime.today().strftime('%Y-%m-%d')}",
+    "content": contenido_final
 }
 
-# **Intervalos de medias móviles**
-intervals_ma = {
-    "Semanal": Interval.INTERVAL_1_WEEK,
-    "Mensual": Interval.INTERVAL_1_MONTH
-}
+respuesta = requests.put(url_actualizar, json=datos_post, auth=(USERNAME, PASSWORD))
+if respuesta.status_code == 200:
+    print("✅ ¡Publicación actualizada en WordPress!")
+else:
+    print(f"❌ Error al actualizar la publicación: {respuesta.status_code} - {respuesta.text}")
 
-# **Intervalos de osciladores**
-intervals_osc = {
-    "4H": Interval.INTERVAL_4_HOURS,
-    "1D": Interval.INTERVAL_1_DAY,
-    "1W": Interval.INTERVAL_1_WEEK,
-    "1M": Interval.INTERVAL_1_MONTH
-}
-
-# **Función para obtener medias móviles desde TradingView**
-def get_ma_data(asset, market, ma_type):
-    data = {}
-    for period_name, interval in intervals_ma.items():
-        try:
-            handler = TA_Handler(symbol=asset, exchange=market, screener="crypto", interval=interval)
-            analysis = handler.get_analysis()
-            price = analysis.indicators.get("close", None)
-            ma_value = analysis.indicators.get(ma_type, None)
-            rango = ((price - ma_value) / ma_value) * 100 if price and ma_value else None
-
-            if rango is not None and -1 <= rango <= 1:
-                data[period_name] = {
-                    "Ticker": asset,
-                    "Precio": round(price, 4),
-                    f"{ma_type}_{period_name}": round(ma_value, 4),
-                    f"Rango_{period_name}": round(rango, 2)
-                }
-        except Exception:
-            pass
-    return data
 # Medias mobiles Precios
 
 import requests
