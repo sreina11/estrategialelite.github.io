@@ -1001,5 +1001,81 @@ if response.status_code == 200:
 else:
     print(f"❌ Error al actualizar la publicación: {response.status_code} - {response.text}")
 
+# APERTURAS PRECIO 8 MESES
+import pandas as pd
+import yfinance as yf
+from datetime import datetime, timedelta
+import requests
+import os  # Para manejar variables de entorno
+from requests.auth import HTTPBasicAuth
+
+# **Lista de criptomonedas**
+symbols = [
+    "BTCUSDT", "ETHUSDT", "XRPUSDT", "BNBUSDT", "SOLUSDT", "DOGEUSDT", "ADAUSDT",
+    "AVAXUSDT", "XLMUSDT", "HYPEUSDT", "SHIBUSDT", "LINKUSDT", "SUIUSDT",
+    "WAXPUSDT", "PAXGUSDT"
+]
+
+# **Mapeo de símbolos para Yahoo Finance**
+symbol_mapping = {symbol: symbol.replace("USDT", "-USD") for symbol in symbols}
+
+# **Obtener los precios de apertura de los últimos 8 meses**
+def get_monthly_open_prices(symbol):
+    crypto = yf.Ticker(symbol_mapping[symbol])
+    hist = crypto.history(period="8mo", interval="1mo")
+
+    if hist.empty:
+        print(f"No se encontraron datos para {symbol}")
+        return []
+
+    return list(hist["Open"].tolist())  # Lista de precios de apertura
+
+# **Obtener las fechas de los últimos 8 meses**
+crypto_example = yf.Ticker(list(symbol_mapping.values())[0])  # Tomamos cualquier cripto como ejemplo
+hist_dates = crypto_example.history(period="8mo", interval="1mo").index.strftime("%Y-%m")
+
+# **Construir el DataFrame**
+data = {}
+
+for ticker in symbols:
+    open_prices = get_monthly_open_prices(ticker)
+    if open_prices:
+        data[ticker] = open_prices
+    else:
+        data[ticker] = [None] * len(hist_dates)  # Si no hay datos, llena con valores vacíos
+
+df_openings = pd.DataFrame(data, index=hist_dates).T
+
+# **Publicar en WordPress (Post 2635)**
+post_id = "2635"
+wordpress_url = f"https://www.estrategiaelite.com/wp-json/wp/v2/posts/{post_id}"
+
+# **Generar tabla HTML**
+def generar_tabla_html(df):
+    estilos = """
+    <style>
+        table {border-collapse: collapse; width: 100%; font-family: Arial;}
+        th, td {border: 1px solid #ddd; padding: 10px; text-align: center;}
+        th {background-color: #0073aa; color: white; font-weight: bold;}
+    </style>
+    """
+    return estilos + df.to_html(index=False, escape=False)
+
+# **Publicar en WordPress**
+post_data = {
+    "title": f"Aperturas Mensuales Últimos 8 Meses - {datetime.today().strftime('%Y-%m-%d')}",
+    "content": f"<h2>Aperturas Mensuales</h2>{generar_tabla_html(df_openings)}"
+}
+
+response = requests.put(
+    wordpress_url, 
+    json=post_data, 
+    auth=(os.getenv("WORDPRESS_USER"), os.getenv("WORDPRESS_PASSWORD"))
+)
+
+if response.status_code == 200:
+    print("✅ ¡Publicación actualizada en WordPress!")
+else:
+    print(f"❌ Error al actualizar la publicación: {response.status_code} - {response.text}")
 
 
