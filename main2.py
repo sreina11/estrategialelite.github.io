@@ -374,6 +374,97 @@ if response.status_code == 200:
 else:
     print(f"❌ Error al actualizar la publicación: {response.status_code} - {response.text}")
 
+# BANDAS DE BOLLINGER PRECIOS
+import requests
+from tradingview_ta import TA_Handler, Interval
+import pandas as pd
+import datetime
+import os
+
+# ----------- Configuración de activos y temporalidades -----------
+activos = {
+    "BTCUSDT": "BINANCE", "ETHUSDT": "BINANCE", "XRPUSDT": "BINANCE",
+    "BNBUSDT": "BINANCE", "SOLUSDT": "BINANCE", "DOGEUSDT": "BINANCE",
+    "ADAUSDT": "BINANCE", "AVAXUSDT": "BINANCE", "XLMUSDT": "BINANCE",
+    "SHIBUSDT": "BINANCE", "LINKUSDT": "BINANCE", "SUIUSDT": "BINANCE",
+    "WAXPUSDT": "BINANCE", "PAXGUSDT": "BINANCE"
+}
+
+temporalidades = {
+    "Diario": Interval.INTERVAL_1_DAY,
+    "Semanal": Interval.INTERVAL_1_WEEK,
+    "Mensual": Interval.INTERVAL_1_MONTH
+}
+
+# ----------- Función de análisis por activo y temporalidad -----------
+def analizar_ticker(ticker, exchange):
+    precios = {}
+
+    for nombre, intervalo in temporalidades.items():
+        try:
+            handler = TA_Handler(symbol=ticker, exchange=exchange, screener="crypto", interval=intervalo)
+            analysis = handler.get_analysis()
+            
+            precios[nombre] = {
+                "BB_UP": round(analysis.indicators["BB.upper"], 4),
+                "BB_Low": round(analysis.indicators["BB.lower"], 4)
+            }
+
+        except Exception as e:
+            print(f"Error en {ticker} - {nombre}: {e}")
+            precios[nombre] = {"BB_UP": None, "BB_Low": None}
+
+    return precios
+
+# ----------- Recolectar datos en tiempo real -----------
+bollinger_data = []
+
+for ticker, exchange in activos.items():
+    precios = analizar_ticker(ticker, exchange)
+    
+    bollinger_data.append([
+        ticker,
+        precios["Diario"]["BB_UP"], precios["Diario"]["BB_Low"],
+        precios["Semanal"]["BB_UP"], precios["Semanal"]["BB_Low"],
+        precios["Mensual"]["BB_UP"], precios["Mensual"]["BB_Low"]
+    ])
+
+# **Crear DataFrame con los resultados**
+columnas = ["Ticker", "BB_UP_Diario", "BB_Low_Diario", "BB_UP_Semanal", "BB_Low_Semanal", "BB_UP_Mensual", "BB_Low_Mensual"]
+df_bollinger = pd.DataFrame(bollinger_data, columns=columnas)
+
+# **Publicar en WordPress (Post 2642)**
+post_id = "2642"
+wordpress_url = f"https://www.estrategiaelite.com/wp-json/wp/v2/posts/{post_id}"
+
+# **Generar tabla HTML**
+def generar_tabla_html(df):
+    estilos = """
+    <style>
+        table {border-collapse: collapse; width: 100%; font-family: Arial;}
+        th, td {border: 1px solid #ddd; padding: 10px; text-align: center;}
+        th {background-color: #0073aa; color: white; font-weight: bold;}
+    </style>
+    """
+    return estilos + df.to_html(index=False, escape=False)
+
+# **Publicar en WordPress**
+post_data = {
+    "title": f"Bandas de Bollinger Últimos Datos - {datetime.datetime.today().strftime('%Y-%m-%d')}",
+    "content": f"<h2>Precios de Bandas de Bollinger</h2>{generar_tabla_html(df_bollinger)}"
+}
+
+response = requests.put(
+    wordpress_url, 
+    json=post_data, 
+    auth=(os.getenv("WORDPRESS_USER"), os.getenv("WORDPRESS_PASSWORD"))
+)
+
+if response.status_code == 200:
+    print("✅ ¡Publicación actualizada en WordPress!")
+else:
+    print(f"❌ Error al actualizar la publicación: {response.status_code} - {response.text}")
+
 
 # BANDAS DE BOLLINGER Y OSCILADORES
 
