@@ -1143,6 +1143,7 @@ for ticker in symbols:
         data[ticker] = [None] * len(hist_dates)  # Si no hay datos, llena con valores vacíos
 
 df_openings = pd.DataFrame(data, index=hist_dates).T
+df_openings.insert(0, "Ticker", df_openings.index)  # ✅ Agrega la columna de tickers
 
 # **Publicar en WordPress (Post 2635)**
 post_id = "2635"
