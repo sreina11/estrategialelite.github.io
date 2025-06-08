@@ -303,6 +303,113 @@ def get_ma_data(asset, market, ma_type):
         except Exception:
             pass
     return data
+# Medias mobiles Precios
+
+import requests
+from tradingview_ta import TA_Handler, Interval
+import pandas as pd
+import datetime
+import os
+
+# ----------- Configuración de activos y temporalidades -----------
+activos = {
+    "ETHUSDT": "BINANCE", "XRPUSDT": "BINANCE", "BNBUSDT": "BINANCE",
+    "SOLUSDT": "BINANCE", "DOGEUSDT": "BINANCE", "ADAUSDT": "BINANCE",
+    "AVAXUSDT": "BINANCE", "XLMUSDT": "BINANCE", "BTCUSDT": "BINANCE",
+    "SHIBUSDT": "BINANCE", "LINKUSDT": "BINANCE", "ARPAUSDT": "BINANCE",
+    "WAXPUSDT": "BINANCE", "PAXGUSDT": "BINANCE"
+}
+
+temporalidades = {
+    "4H": Interval.INTERVAL_4_HOURS,  # 🔹 NUEVA TEMPORALIDAD 🔹
+    "Diario": Interval.INTERVAL_1_DAY,
+    "Semanal": Interval.INTERVAL_1_WEEK,
+    "Mensual": Interval.INTERVAL_1_MONTH
+}
+
+# ----------- Obtener precios actuales de medias móviles -----------
+
+def obtener_medias(ticker, exchange):
+    resultado = {}
+    for nombre_tf, intervalo in temporalidades.items():
+        try:
+            handler = TA_Handler(
+                symbol=ticker,
+                exchange=exchange,
+                screener="crypto",
+                interval=intervalo
+            )
+            analysis = handler.get_analysis()
+
+            sma20 = analysis.indicators.get("SMA20") or analysis.indicators.get("EMA20")
+            sma50 = analysis.indicators.get("SMA50") or analysis.indicators.get("EMA50")
+            sma200 = analysis.indicators.get("SMA200") or analysis.indicators.get("EMA200")
+
+            resultado[nombre_tf] = {
+                "MA20": round(sma20, 4) if sma20 else "N/A",
+                "MA50": round(sma50, 4) if sma50 else "N/A",
+                "MA200": round(sma200, 4) if sma200 else "N/A"
+            }
+        except Exception as e:
+            print(f"⚠️ Error con {ticker} en {nombre_tf}: {e}")
+            resultado[nombre_tf] = {"MA20": "Err", "MA50": "Err", "MA200": "Err"}
+
+    return resultado
+
+# ----------- Recolectar todos los datos -----------
+
+filas = []
+
+for ticker, exchange in activos.items():
+    datos = obtener_medias(ticker, exchange)
+    filas.append([
+        ticker,
+        datos["4H"]["MA20"], datos["4H"]["MA50"], datos["4H"]["MA200"],  # 🔹 NUEVA TEMPORALIDAD 🔹
+        datos["Diario"]["MA20"], datos["Diario"]["MA50"], datos["Diario"]["MA200"],
+        datos["Semanal"]["MA20"], datos["Semanal"]["MA50"], datos["Semanal"]["MA200"],
+        datos["Mensual"]["MA20"], datos["Mensual"]["MA50"], datos["Mensual"]["MA200"]
+    ])
+
+columnas = [
+    "Ticker", "MA20_4H", "MA50_4H", "MA200_4H",  # 🔹 NUEVA TEMPORALIDAD 🔹
+    "MA20_D", "MA50_D", "MA200_D",
+    "MA20_W", "MA50_W", "MA200_W",
+    "MA20_M", "MA50_M", "MA200_M"
+]
+
+df = pd.DataFrame(filas, columns=columnas)
+
+# ----------- Tabla HTML para WordPress -----------
+
+def tabla_html(df):
+    estilo = """
+    <style>
+        table {border-collapse: collapse; width: 100%; font-family: Arial;}
+        th, td {border: 1px solid #ccc; padding: 8px; text-align: center;}
+        th {background-color: #222; color: white;}
+    </style>
+    """
+    return estilo + df.to_html(index=False)
+
+# ----------- Publicar en WordPress (POST ID 2647) -----------
+
+wordpress_url = f"https://www.estrategiaelite.com/wp-json/wp/v2/posts/2647"
+
+post_data = {
+    "title": f"Precios de Medias Móviles - {datetime.date.today()}",
+    "content": f"<h2>Medias Móviles por Temporalidad</h2>{tabla_html(df)}"
+}
+
+response = requests.put(
+    wordpress_url,
+    auth=(os.getenv("WORDPRESS_USER"), os.getenv("WORDPRESS_PASSWORD")),
+    json=post_data
+)
+
+if response.status_code == 200:
+    print("✅ ¡Post actualizado correctamente!")
+else:
+    print(f"❌ Error al publicar: {response.status_code} - {response.text}")
 
 # **Función para obtener RSI y Estocástico desde TradingView**
 def get_oscillator_data(asset, market):
