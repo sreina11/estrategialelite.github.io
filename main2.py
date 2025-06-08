@@ -439,12 +439,13 @@ if response.status_code == 200:
 else:
     print(f"❌ Error al publicar: {response.status_code} - {response.text}")
 
-# Medias MObiles + Osciladores
+# Medias Móviles + Osciladores con Precio Actual
 import requests
 import pandas as pd
 from bs4 import BeautifulSoup
 from datetime import datetime
 import os
+from tradingview_ta import TA_Handler, Interval
 
 # --- Configuración ---
 WORDPRESS_URL = "https://www.estrategiaelite.com/wp-json/wp/v2"
@@ -473,6 +474,20 @@ def extraer_dataframe(html_content):
         return pd.read_html(str(table))[0]
     else:
         return pd.DataFrame()
+
+# --- Obtener el precio actual de un ticker ---
+def obtener_precio_actual(ticker):
+    try:
+        handler = TA_Handler(
+            symbol=ticker,
+            exchange="BINANCE",
+            screener="crypto",
+            interval=Interval.INTERVAL_1_DAY
+        )
+        analysis = handler.get_analysis()
+        return round(analysis.indicators.get("close", None), 4)
+    except Exception:
+        return None
 
 # --- Obtener y limpiar los datos fuente ---
 df_osciladores = extraer_dataframe(obtener_contenido_post(POST_ID_OSCILADORES))
@@ -524,20 +539,22 @@ df_medias_filtrado = df_medias.copy()
 for col in df_medias.columns[1:]:
     df_medias_filtrado[col] = df_medias[col].apply(lambda x: x if pd.notnull(x) and abs(x) <= 1 else None)
 
-# --- Función para obtener confluencias ---
+# --- Función para obtener confluencias + precio actual ---
 def obtener_confluencias(df_osc, tipo="Estocástico"):
     confluencias = []
     for _, osc in df_osc.iterrows():
         ticker = osc["Ticker"]
         if ticker in df_medias_filtrado["Ticker"].values:
             row_ma = df_medias_filtrado[df_medias_filtrado["Ticker"] == ticker]
+            precio_actual = obtener_precio_actual(ticker)
             for col in df_medias_filtrado.columns[1:]:
                 val_ma = row_ma[col].values[0]
                 if pd.notnull(val_ma):
                     confluencias.append({
                         "Ticker": ticker,
                         f"{tipo}": f"{osc['Oscilador']} = {osc['Valor']:.2f} ({osc['Condición']})",
-                        "Media Móvil": f"{col} = {val_ma:.2f} (≈1%) ✅"
+                        "Media Móvil": f"{col} = {val_ma:.2f} (≈1%) ✅",
+                        "Precio Actual": precio_actual
                     })
     return pd.DataFrame(confluencias)
 
@@ -576,6 +593,7 @@ if respuesta.status_code == 200:
     print("✅ ¡Publicación actualizada en WordPress!")
 else:
     print(f"❌ Error al actualizar la publicación: {respuesta.status_code} - {respuesta.text}")
+
 
 
 
