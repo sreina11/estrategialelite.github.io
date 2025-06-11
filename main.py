@@ -28,8 +28,6 @@ activos = {
     "CVX": "NYSE",
     "XOM": "NYSE",
     "JNJ": "NYSE",
-    "BTCUSD": "BINANCE",
-    "ETHUSD": "BINANCE"
 }
 
 # Temporalidades
@@ -37,7 +35,6 @@ temporalidades = {
     "RSI_4H": Interval.INTERVAL_4_HOURS,
     "RSI_1D": Interval.INTERVAL_1_DAY,
     "RSI_1W": Interval.INTERVAL_1_WEEK,
-    "RSI_1M": Interval.INTERVAL_1_MONTH
 }
 
 # Almacena resultados
@@ -68,8 +65,8 @@ for col in temporalidades.keys():
 
 # Filtro: RSI ≤ 30 o ≥ 70 en cualquiera de las temporalidades
 df_filtrado = df_rsi[
-    (df_rsi[["RSI_4H", "RSI_1D", "RSI_1W", "RSI_1M"]] <= 30).any(axis=1) |
-    (df_rsi[["RSI_4H", "RSI_1D", "RSI_1W", "RSI_1M"]] >= 70).any(axis=1)
+    (df_rsi[["RSI_4H", "RSI_1D", "RSI_1W"]] <= 30).any(axis=1) |
+    (df_rsi[["RSI_4H", "RSI_1D", "RSI_1W"]] >= 70).any(axis=1)
 ]
 
 # Mostrar resultados
@@ -106,7 +103,7 @@ def aplicar_colores(valor):
 df_coloreado = df_filtrado.copy()
 
 # **Aplicar la función a las columnas RSI**
-for col in ["RSI_4H", "RSI_1D", "RSI_1W", "RSI_1M"]:
+for col in ["RSI_4H", "RSI_1D", "RSI_1W"]:
     df_coloreado[col] = df_coloreado[col].apply(aplicar_colores)
 
 # **Diseño de la tabla en HTML con estilos**
@@ -152,8 +149,7 @@ activos = {
     "META": "NASDAQ", "IBM": "NYSE", "V": "NYSE", "JPM": "NYSE", "MA": "NYSE",
     "AAPL": "NASDAQ", "AMD": "NASDAQ", "NVDA": "NASDAQ", "AMZN": "NASDAQ", "KO": "NYSE",
     "NKE": "NYSE", "DIS": "NYSE", "MCD": "NYSE", "NFLX": "NASDAQ", "CAT": "NYSE",
-    "TSLA": "NASDAQ", "CVX": "NYSE", "XOM": "NYSE", "JNJ": "NYSE", "BTCUSD": "BINANCE",
-    "ETHUSD": "BINANCE"
+    "TSLA": "NASDAQ", "CVX": "NYSE", "XOM": "NYSE", "JNJ": "NYSE"
 }
 
 # Temporalidades a analizar
@@ -161,7 +157,6 @@ temporalidades_estocastico = {
     "Stoch_4H": Interval.INTERVAL_4_HOURS,
     "Stoch_1D": Interval.INTERVAL_1_DAY,
     "Stoch_1W": Interval.INTERVAL_1_WEEK,
-    "Stoch_1M": Interval.INTERVAL_1_MONTH
 }
 
 # Recopilar resultados del Estocástico
@@ -187,8 +182,8 @@ for col in temporalidades_estocastico.keys():
 
 # Filtro: Oscilador Estocástico entre 20 y 80
 df_stoch_filtrado = df_stoch[
-    ((df_stoch[["Stoch_4H", "Stoch_1D", "Stoch_1W", "Stoch_1M"]] <= 20) |
-     (df_stoch[["Stoch_4H", "Stoch_1D", "Stoch_1W", "Stoch_1M"]] >= 80)).any(axis=1)
+    ((df_stoch[["Stoch_4H", "Stoch_1D", "Stoch_1W"]] <= 20) |
+     (df_stoch[["Stoch_4H", "Stoch_1D", "Stoch_1W"]] >= 80)).any(axis=1)
 ]
 
 # Mostrar resultados
@@ -217,7 +212,7 @@ def aplicar_colores(valor):
 
 # **Aplicar formato de colores al Estocástico**
 df_stoch_coloreado = df_stoch_filtrado.copy()
-for col in ["Stoch_4H", "Stoch_1D", "Stoch_1W", "Stoch_1M"]:
+for col in ["Stoch_4H", "Stoch_1D", "Stoch_1W"]:
     df_stoch_coloreado[col] = df_stoch_coloreado[col].apply(aplicar_colores)
 
 # **Diseño de la tabla en HTML con estilos**
@@ -385,7 +380,6 @@ def cumple_condicion_rsi(row):
         row["RSI_4H"] <= 30, row["RSI_4H"] >= 70,
         row["RSI_1D"] <= 30, row["RSI_1D"] >= 70,
         row["RSI_1W"] <= 30, row["RSI_1W"] >= 70,
-        row["RSI_1M"] <= 30, row["RSI_1M"] >= 70
     ])
 
 # **Función para verificar condiciones del Estocástico**
@@ -394,7 +388,6 @@ def cumple_condicion_stoch(row):
         row["Stoch_4H"] <= 20, row["Stoch_4H"] >= 80,
         row["Stoch_1D"] <= 20, row["Stoch_1D"] >= 80,
         row["Stoch_1W"] <= 20, row["Stoch_1W"] >= 80,
-        row["Stoch_1M"] <= 20, row["Stoch_1M"] >= 80
     ])
 
 # **Aplicar filtros**
@@ -435,9 +428,9 @@ def aplicar_colores(valor, tipo):
 
 # **Aplicar colores al DataFrame**
 df_coloreado = df_filtrado_final.copy()
-for col in ["RSI_4H", "RSI_1D", "RSI_1W", "RSI_1M"]:
+for col in ["RSI_4H", "RSI_1D", "RSI_1W"]:
     df_coloreado[col] = df_coloreado[col].apply(lambda x: aplicar_colores(x, "RSI"))
-for col in ["Stoch_4H", "Stoch_1D", "Stoch_1W", "Stoch_1M"]:
+for col in ["Stoch_4H", "Stoch_1D", "Stoch_1W"]:
     df_coloreado[col] = df_coloreado[col].apply(lambda x: aplicar_colores(x, "Stoch"))
 
 # **Diseño de la tabla en HTML**
@@ -676,14 +669,14 @@ df_ma_200.rename(columns={"Activo": "Ticker"}, inplace=True)
 
 # **Filtrar activos con RSI ≤30 o ≥70**
 df_rsi_filtrado = df_rsi[
-    (df_rsi[["RSI_4H", "RSI_1D", "RSI_1W", "RSI_1M"]] <= 30).any(axis=1) |
-    (df_rsi[["RSI_4H", "RSI_1D", "RSI_1W", "RSI_1M"]] >= 70).any(axis=1)
+    (df_rsi[["RSI_4H", "RSI_1D", "RSI_1W"]] <= 30).any(axis=1) |
+    (df_rsi[["RSI_4H", "RSI_1D", "RSI_1W"]] >= 70).any(axis=1)
 ]
 
 # **Filtrar activos con Estocástico ≤20 o ≥80**
 df_stoch_filtrado = df_stoch[
-    (df_stoch[["Stoch_4H", "Stoch_1D", "Stoch_1W", "Stoch_1M"]] <= 20).any(axis=1) |
-    (df_stoch[["Stoch_4H", "Stoch_1D", "Stoch_1W", "Stoch_1M"]] >= 80).any(axis=1)
+    (df_stoch[["Stoch_4H", "Stoch_1D", "Stoch_1W"]] <= 20).any(axis=1) |
+    (df_stoch[["Stoch_4H", "Stoch_1D", "Stoch_1W"]] >= 80).any(axis=1)
 ]
 
 # **Filtrar activos dentro del rango ±2% de cada MA**
@@ -733,7 +726,7 @@ import datetime
 import pandas as pd
 
 # 🔹 Reemplaza el ID con el que obtuviste en la publicación inicial
-post_id = "1005"  # ⚠️ Usa el ID correcto
+post_id = "1015"  # ⚠️ Usa el ID correcto
 
 # 🔹 URL de la API para actualizar el post
 wordpress_url = f"https://estrategiaelite.com/wp-json/wp/v2/posts/{post_id}"
@@ -881,7 +874,6 @@ for ticker, exchange in assets.items():
                 "STOCH_4H": stoch["4H"],
                 "STOCH Diario": stoch.get("Diario"),
                 "STOCH Semanal": stoch.get("Semanal"),
-                "STOCH Mensual": stoch.get("Mensual")
             })
 
 # ----------- Funciones para dar formato HTML -----------
