@@ -465,319 +465,98 @@ if response_confluencias.status_code == 200:
 else:
     print(f"❌ Error al actualizar Confluencias: {response_confluencias.status_code}, {response_confluencias.text}")
 
-# Medias moviles 
+# Medias moviles Precio y rango
 
-# MA 200 
-from tradingview_ta import TA_Handler, Interval
+import yfinance as yf
 import pandas as pd
-
-# **Lista de activos con su mercado en TradingView**
-assets = {
-    "SPY": "AMEX", "DJI": "DJI", "NDX": "NASDAQ", "MSFT": "NASDAQ", "GOOGL": "NASDAQ",
-    "META": "NASDAQ", "IBM": "NYSE", "V": "NYSE", "JPM": "NYSE", "MA": "NYSE",
-    "AAPL": "NASDAQ", "AMD": "NASDAQ", "NVDA": "NASDAQ", "AMZN": "NASDAQ", "KO": "NYSE",
-    "NKE": "NYSE", "DIS": "NYSE", "MCD": "NYSE", "NFLX": "NASDAQ", "CAT": "NYSE",
-    "TSLA": "NASDAQ", "CVX": "NYSE", "XOM": "NYSE", "JNJ": "NYSE"
-}
-
-# **Intervalos de TradingView**
-intervals_ma200 = {
-    "Semanal": Interval.INTERVAL_1_WEEK,
-    "Mensual": Interval.INTERVAL_1_MONTH
-}
-
-# **Diccionario para almacenar los datos**
-data_ma_200 = []
-filtered_ma_200 = []
-
-# **Obtención de datos desde TradingView**
-for asset, market in assets.items():
-    asset_data = {"Activo": asset}
-
-    for period_name, interval in intervals_ma200.items():
-        try:
-            handler = TA_Handler(symbol=asset, exchange=market, screener="america", interval=interval)
-            analysis = handler.get_analysis()
-
-            price = analysis.indicators.get("close", None)  # Precio actual
-            ma_200 = analysis.indicators.get("SMA200", None)  # Media móvil de 200
-
-            asset_data[f"Precio_{period_name}"] = price
-            asset_data[f"200_MA_{period_name}"] = ma_200
-
-            # **Calcular el rango en porcentaje**
-            if price and ma_200:
-                rango = ((price - ma_200) / ma_200) * 100
-                asset_data[f"Rango_{period_name}"] = rango
-
-                # **Filtrar si el rango está dentro de ±1%**
-                if -1 <= rango <= 1:
-                    filtered_ma_200.append(asset_data)
-
-        except Exception as e:
-            print(f"Error obteniendo datos para {asset} ({period_name}): {e}")
-
-    data_ma_200.append(asset_data)
-
-# **Conversión a DataFrame**
-df_ma_200 = pd.DataFrame(data_ma_200)
-df_filtrado_ma_200 = pd.DataFrame(filtered_ma_200)  # ✅ Renombrado para evitar conflictos
-
-# **Mostrar todos los datos**
-print("📊 Datos completos de la MA200:")
-print(df_ma_200)
-
-# **Mostrar activos dentro del rango ±1% de la MA200**
-print("\n✅ Activos dentro del rango ±1% de la MA200:")
-print(df_filtrado_ma_200)
-
-# MA 50 
-from tradingview_ta import TA_Handler, Interval
-import pandas as pd
-
-# **Lista de activos con su mercado en TradingView**
-assets = {
-    "SPY": "AMEX", "DJI": "DJI", "NDX": "NASDAQ", "MSFT": "NASDAQ", "GOOGL": "NASDAQ",
-    "META": "NASDAQ", "IBM": "NYSE", "V": "NYSE", "JPM": "NYSE", "MA": "NYSE",
-    "AAPL": "NASDAQ", "AMD": "NASDAQ", "NVDA": "NASDAQ", "AMZN": "NASDAQ", "KO": "NYSE",
-    "NKE": "NYSE", "DIS": "NYSE", "MCD": "NYSE", "NFLX": "NASDAQ", "CAT": "NYSE",
-    "TSLA": "NASDAQ", "CVX": "NYSE", "XOM": "NYSE", "JNJ": "NYSE"
-}
-
-# **Intervalos de TradingView**
-intervals_ma50 = {
-    "Semanal": Interval.INTERVAL_1_WEEK,
-    "Mensual": Interval.INTERVAL_1_MONTH
-}
-
-# **Diccionario para almacenar los datos**
-data_ma_50 = []
-filtered_ma_50 = []
-
-# **Obtención de datos desde TradingView**
-for asset, market in assets.items():
-    asset_data = {"Activo": asset}
-
-    for period_name, interval in intervals_ma50.items():
-        try:
-            handler = TA_Handler(symbol=asset, exchange=market, screener="america", interval=interval)
-            analysis = handler.get_analysis()
-
-            price = analysis.indicators.get("close", None)  # Precio actual
-            ma_50 = analysis.indicators.get("SMA50", None)  # Media móvil de 50
-
-            asset_data[f"Precio_{period_name}"] = price
-            asset_data[f"50_MA_{period_name}"] = ma_50
-
-            # **Calcular el rango en porcentaje**
-            if price and ma_50:
-                rango = ((price - ma_50) / ma_50) * 100
-                asset_data[f"Rango_{period_name}"] = rango
-
-                # **Filtrar si el rango está dentro de ±2%**
-                if -2 <= rango <= 2:
-                    filtered_ma_50.append(asset_data)
-
-        except Exception as e:
-            print(f"Error obteniendo datos para {asset} ({period_name}): {e}")
-
-    data_ma_50.append(asset_data)
-
-# **Conversión a DataFrame**
-df_ma_50 = pd.DataFrame(data_ma_50)
-df_filtrado_ma_50 = pd.DataFrame(filtered_ma_50)  # ✅ Renombrado para evitar conflictos
-
-# **Mostrar todos los datos**
-print("📊 Datos completos de la MA50:")
-print(df_ma_50)
-
-# **Mostrar activos dentro del rango ±2% de la MA50**
-print("\n✅ Activos dentro del rango ±2% de la MA50:")
-print(df_filtrado_ma_50)
-
-# MA 2O
-from tradingview_ta import TA_Handler, Interval
-import pandas as pd
-
-# **Lista de activos con su mercado en TradingView**
-assets = {
-    "SPY": "AMEX", "DJI": "DJI", "NDX": "NASDAQ", "MSFT": "NASDAQ", "GOOGL": "NASDAQ",
-    "META": "NASDAQ", "IBM": "NYSE", "V": "NYSE", "JPM": "NYSE", "MA": "NYSE",
-    "AAPL": "NASDAQ", "AMD": "NASDAQ", "NVDA": "NASDAQ", "AMZN": "NASDAQ", "KO": "NYSE",
-    "NKE": "NYSE", "DIS": "NYSE", "MCD": "NYSE", "NFLX": "NASDAQ", "CAT": "NYSE",
-    "TSLA": "NASDAQ", "CVX": "NYSE", "XOM": "NYSE", "JNJ": "NYSE"
-}
-
-# **Intervalos de TradingView**
-intervals_ma20 = {
-    "Semanal": Interval.INTERVAL_1_WEEK,
-    "Mensual": Interval.INTERVAL_1_MONTH
-}
-
-# **Diccionario para almacenar los datos**
-data_ma_20 = []
-filtered_ma_20 = []
-
-# **Obtención de datos desde TradingView**
-for asset, market in assets.items():
-    asset_data = {"Activo": asset}
-
-    for period_name, interval in intervals_ma20.items():
-        try:
-            handler = TA_Handler(symbol=asset, exchange=market, screener="america", interval=interval)
-            analysis = handler.get_analysis()
-
-            price = analysis.indicators.get("close", None)  # Precio actual
-            ma_20 = analysis.indicators.get("SMA20", None)  # Media móvil de 20
-
-            asset_data[f"Precio_{period_name}"] = price
-            asset_data[f"20_MA_{period_name}"] = ma_20
-
-            # **Calcular el rango en porcentaje**
-            if price and ma_20:
-                rango = ((price - ma_20) / ma_20) * 100
-                asset_data[f"Rango_{period_name}"] = rango
-
-                # **Filtrar si el rango está dentro de ±2%**
-                if -2 <= rango <= 2:
-                    filtered_ma_20.append(asset_data)
-
-        except Exception as e:
-            print(f"Error obteniendo datos para {asset} ({period_name}): {e}")
-
-    data_ma_20.append(asset_data)
-
-# **Conversión a DataFrame**
-df_ma_20 = pd.DataFrame(data_ma_20)
-df_filtrado_ma_20 = pd.DataFrame(filtered_ma_20)  # ✅ Renombrado para evitar conflictos
-
-# **Mostrar todos los datos**
-print("📊 Datos completos de la MA20:")
-print(df_ma_20)
-
-# **Mostrar activos dentro del rango ±2% de la MA20**
-print("\n✅ Activos dentro del rango ±2% de la MA20:")
-print(df_filtrado_ma_20)
-
-# Confluencias MA y Osciladores 
-import pandas as pd
-
-# **Renombrar "Activo" a "Ticker" en las medias móviles para coincidir con RSI y Estocástico**
-df_ma_20.rename(columns={"Activo": "Ticker"}, inplace=True)
-df_ma_50.rename(columns={"Activo": "Ticker"}, inplace=True)
-df_ma_200.rename(columns={"Activo": "Ticker"}, inplace=True)
-
-# **Filtrar activos con RSI ≤30 o ≥70**
-df_rsi_filtrado = df_rsi[
-    (df_rsi[["RSI_4H", "RSI_1D", "RSI_1W"]] <= 30).any(axis=1) |
-    (df_rsi[["RSI_4H", "RSI_1D", "RSI_1W"]] >= 70).any(axis=1)
-]
-
-# **Filtrar activos con Estocástico ≤20 o ≥80**
-df_stoch_filtrado = df_stoch[
-    (df_stoch[["Stoch_4H", "Stoch_1D", "Stoch_1W"]] <= 20).any(axis=1) |
-    (df_stoch[["Stoch_4H", "Stoch_1D", "Stoch_1W"]] >= 80).any(axis=1)
-]
-
-# **Filtrar activos dentro del rango ±2% de cada MA**
-df_ma_20_filtrado = df_ma_20[
-    ((df_ma_20["Rango_Semanal"].between(-2, 2)) | (df_ma_20["Rango_Mensual"].between(-2, 2)))
-]
-df_ma_50_filtrado = df_ma_50[
-    ((df_ma_50["Rango_Semanal"].between(-2, 2)) | (df_ma_50["Rango_Mensual"].between(-2, 2)))
-]
-df_ma_200_filtrado = df_ma_200[
-    ((df_ma_200["Rango_Semanal"].between(-2, 2)) | (df_ma_200["Rango_Mensual"].between(-2, 2)))
-]
-
-# **Generar DataFrames de confluencias con RSI**
-df_confluencia_20_rsi = pd.merge(df_ma_20_filtrado, df_rsi_filtrado, on="Ticker", how="inner")
-df_confluencia_50_rsi = pd.merge(df_ma_50_filtrado, df_rsi_filtrado, on="Ticker", how="inner")
-df_confluencia_200_rsi = pd.merge(df_ma_200_filtrado, df_rsi_filtrado, on="Ticker", how="inner")
-
-# **Generar DataFrames de confluencias con Estocástico**
-df_confluencia_20_stoch = pd.merge(df_ma_20_filtrado, df_stoch_filtrado, on="Ticker", how="inner")
-df_confluencia_50_stoch = pd.merge(df_ma_50_filtrado, df_stoch_filtrado, on="Ticker", how="inner")
-df_confluencia_200_stoch = pd.merge(df_ma_200_filtrado, df_stoch_filtrado, on="Ticker", how="inner")
-
-# **Mostrar resultados organizados por cada media móvil**
-print("\n📊 Activos con confluencia MA 20 ±2% + RSI:")
-print(df_confluencia_20_rsi)
-
-print("\n📊 Activos con confluencia MA 50 ±2% + RSI:")
-print(df_confluencia_50_rsi)
-
-print("\n📊 Activos con confluencia MA 200 ±2% + RSI:")
-print(df_confluencia_200_rsi)
-
-print("\n📊 Activos con confluencia MA 20 ±2% + Estocástico:")
-print(df_confluencia_20_stoch)
-
-print("\n📊 Activos con confluencia MA 50 ±2% + Estocástico:")
-print(df_confluencia_50_stoch)
-
-print("\n📊 Activos con confluencia MA 200 ±2% + Estocástico:")
-print(df_confluencia_200_stoch)
-
-# POST CONFLUENCIAS MEDIAS MOVILES Y OSCILADORES
-
 import requests
+import os
 import datetime
-import pandas as pd
 
-# 🔹 Reemplaza el ID con el que obtuviste en la publicación inicial
-post_id = "1015"  # ⚠️ Usa el ID correcto
+tickers = [
+    "AAPL", "AMD", "AMZN", "CAT", "CVX", "DIS", "GOOGL", "IBM", "JNJ", "JPM",
+    "KO", "MA", "MCD", "META", "MSFT", "^NDX", "NFLX", "NKE", "NVDA", "SPY",
+    "TSLA", "V", "XOM", "^DJI"
+]
 
-# 🔹 URL de la API para actualizar el post
-wordpress_url = f"https://estrategiaelite.com/wp-json/wp/v2/posts/{post_id}"
+def pct_diff(price, ma):
+    return round(((price - ma) / ma) * 100, 2) if price and ma else None
 
-# 🔹 Simulación de datos de confluencias (Ejemplo sin CSV)
-dataframes_confluencias = {
-    "MA 20 ±2% + RSI": pd.DataFrame({"Activo": ["BTCUSDT", "ETHUSDT"], "RSI_1D": [30, 75]}),
-    "MA 50 ±2% + RSI": pd.DataFrame({"Activo": ["BNBUSDT", "XRPUSDT"], "RSI_1D": [45, 80]}),
+def get_ma_data(ticker, interval, label):
+    try:
+        t = yf.Ticker(ticker)
+        hist = t.history(period="max", interval=interval, auto_adjust=True)
+        hist = hist.dropna(subset=["Close"])
+
+        close = hist['Close'].iloc[-1] if not hist.empty else None
+        ma20 = hist['Close'].rolling(window=20).mean().iloc[-1] if len(hist) >= 20 else None
+        ma50 = hist['Close'].rolling(window=50).mean().iloc[-1] if len(hist) >= 50 else None
+        ma200 = hist['Close'].rolling(window=200).mean().iloc[-1] if len(hist) >= 200 else None
+
+        return pd.Series({
+            'Ticker': ticker,
+            'Precio Actual': round(close, 2) if close else None,
+            f'{label}_MA20': round(ma20, 2) if ma20 else None,
+            f'{label}_MA50': round(ma50, 2) if ma50 else None,
+            f'{label}_MA200': round(ma200, 2) if ma200 else None,
+            f'{label}_%vsMA20': pct_diff(close, ma20),
+            f'{label}_%vsMA50': pct_diff(close, ma50),
+            f'{label}_%vsMA200': pct_diff(close, ma200),
+        })
+
+    except Exception as e:
+        print(f"Error en {ticker} ({label}): {e}")
+        return pd.Series({
+            'Ticker': ticker,
+            'Precio Actual': None,
+            f'{label}_MA20': None,
+            f'{label}_MA50': None,
+            f'{label}_MA200': None,
+            f'{label}_%vsMA20': None,
+            f'{label}_%vsMA50': None,
+            f'{label}_%vsMA200': None,
+        })
+
+# Obtener dataframes
+df_daily = pd.DataFrame([get_ma_data(ticker, "1d", "D") for ticker in tickers])
+df_weekly = pd.DataFrame([get_ma_data(ticker, "1wk", "W") for ticker in tickers])
+df_monthly = pd.DataFrame([get_ma_data(ticker, "1mo", "M") for ticker in tickers])
+
+# Convertir a HTML (con un poco de formato)
+def to_html_table(df, title):
+    return f"<h2>{title}</h2>" + df.to_html(index=False, border=0, classes="wp-block-table", justify='center')
+
+html_content = (
+    f"<p>Última actualización: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}</p>"
+    + to_html_table(df_daily, "Media Móvil Diaria")
+    + to_html_table(df_weekly, "Media Móvil Semanal")
+    + to_html_table(df_monthly, "Media Móvil Mensual")
+)
+
+# Actualizar el post en WordPress (ID 3016)
+post_id = "3016"
+url = f"https://estrategiaelite.com/wp-json/wp/v2/posts/{post_id}"
+
+payload = {
+    "title": f"Resumen Técnico - {datetime.datetime.now().strftime('%Y-%m-%d')}",
+    "content": html_content
 }
 
-# 🔹 Función para aplicar colores al RSI y Estocástico
-def aplicar_colores(valor, tipo):
-    if pd.notna(valor):  # Evita errores con valores nulos
-        if tipo == "RSI" and valor <= 20:
-            return f'<span style="color: #009900; font-weight: bold;">{valor}</span>'  # Verde
-        elif tipo == "RSI" and valor >= 70:
-            return f'<span style="color: #FF0000; font-weight: bold;">{valor}</span>'  # Rojo
-    return str(valor)
-
-# 🔹 Aplicar colores a los valores de RSI
-contenido_html = ""
-for nombre, df in dataframes_confluencias.items():
-    df_coloreado = df.copy()
-    for col in ["RSI_1D"]:
-        df_coloreado[col] = df_coloreado[col].apply(lambda x: aplicar_colores(x, "RSI"))
-
-    # 🔹 Estilos de la tabla HTML
-    estilos = """
-    <style>
-        table {border-collapse: collapse; width: 100%; font-family: Arial;}
-        th, td {border: 1px solid #ddd; padding: 10px; text-align: center;}
-        th {background-color: #0073aa; color: white; font-weight: bold;}
-        tr:nth-child(even) {background-color: #f2f2f2;}
-        tr:hover {background-color: #ddd;}
-    </style>
-    """
-    contenido_html += f"<h5>{nombre}</h5>" + estilos + df_coloreado.to_html(index=False, escape=False)
-
-# 🔹 Datos de la actualización
-post_data = {
-    "title": f"Confluencias Técnicas - Actualización {datetime.datetime.now().strftime('%Y-%m-%d')}",
-    "content": contenido_html
-}
-
-# 🔹 Enviar solicitud PUT para actualizar el post en WordPress
-response = requests.put(wordpress_url, json=post_data, auth=("tu_usuario", "tu_contraseña"))
+response = requests.put(
+    url,
+    json=payload,
+    auth=(os.getenv("WORDPRESS_USER"), os.getenv("WORDPRESS_PASSWORD"))
+)
 
 if response.status_code == 200:
-    print("✅ ¡Publicación de Confluencias actualizada exitosamente en WordPress!")
+    print("✅ Publicación actualizada correctamente.")
 else:
-    print(f"❌ Error al actualizar: {response.status_code}, {response.text}")
+    print(f"❌ Error al actualizar: {response.status_code} - {response.text}")
+
+
+# Confluencias MA + OSC
+
+
 
 # BANDAS DE BOLLINGER
 
