@@ -472,6 +472,7 @@ import pandas as pd
 import requests
 import os
 import datetime
+import time
 
 tickers = [
     "AAPL", "AMD", "AMZN", "CAT", "CVX", "DIS", "GOOGL", "IBM", "JNJ", "JPM",
@@ -480,22 +481,27 @@ tickers = [
 ]
 
 def pct_diff(price, ma):
+    """Calcula la diferencia porcentual respecto a la media móvil."""
     return round(((price - ma) / ma) * 100, 2) if price and ma else None
 
 def get_ma_data(ticker, interval, label):
+    """Obtiene las medias móviles y el precio actual de un ticker."""
     try:
         t = yf.Ticker(ticker)
         hist = t.history(period="max", interval=interval, auto_adjust=True)
-        hist = hist.dropna(subset=["Close"])
 
-        close = hist['Close'].iloc[-1] if not hist.empty else None
+        if hist.empty:
+            print(f"⚠️ No se encontraron datos para {ticker} ({label})")
+            return pd.Series({'Ticker': ticker, 'Precio Actual': None})
+
+        close = hist['Close'].iloc[-1]
         ma20 = hist['Close'].rolling(window=20).mean().iloc[-1] if len(hist) >= 20 else None
         ma50 = hist['Close'].rolling(window=50).mean().iloc[-1] if len(hist) >= 50 else None
         ma200 = hist['Close'].rolling(window=200).mean().iloc[-1] if len(hist) >= 200 else None
 
         return pd.Series({
             'Ticker': ticker,
-            'Precio Actual': round(close, 2) if close else None,
+            'Precio Actual': round(close, 2),
             f'{label}_MA20': round(ma20, 2) if ma20 else None,
             f'{label}_MA50': round(ma50, 2) if ma50 else None,
             f'{label}_MA200': round(ma200, 2) if ma200 else None,
@@ -503,23 +509,16 @@ def get_ma_data(ticker, interval, label):
             f'{label}_%vsMA50': pct_diff(close, ma50),
             f'{label}_%vsMA200': pct_diff(close, ma200),
         })
-
+    
     except Exception as e:
-        print(f"Error en {ticker} ({label}): {e}")
-        return pd.Series({
-            'Ticker': ticker,
-            'Precio Actual': None,
-            f'{label}_MA20': None,
-            f'{label}_MA50': None,
-            f'{label}_MA200': None,
-            f'{label}_%vsMA20': None,
-            f'{label}_%vsMA50': None,
-            f'{label}_%vsMA200': None,
-        })
+        print(f"❌ Error al obtener datos de {ticker}: {e}")
+        return pd.Series({'Ticker': ticker, 'Precio Actual': None})
 
-# Obtener dataframes
+# Obtener dataframes con pausas entre solicitudes
 df_daily = pd.DataFrame([get_ma_data(ticker, "1d", "D") for ticker in tickers])
+time.sleep(5)  # Pausa para evitar bloqueos
 df_weekly = pd.DataFrame([get_ma_data(ticker, "1wk", "W") for ticker in tickers])
+time.sleep(5)
 df_monthly = pd.DataFrame([get_ma_data(ticker, "1mo", "M") for ticker in tickers])
 
 # Convertir a HTML (con un poco de formato)
@@ -533,7 +532,7 @@ html_content = (
     + to_html_table(df_monthly, "Media Móvil Mensual")
 )
 
-# Actualizar el post en WordPress (ID 3016)
+# Publicar en WordPress
 post_id = "3016"
 url = f"https://estrategiaelite.com/wp-json/wp/v2/posts/{post_id}"
 
@@ -555,6 +554,109 @@ else:
 
 
 # Confluencias MA + OSC
+import pandas as pd
+import requests
+from bs4 import BeautifulSoup
+import os
+import datetime
+
+# --- CONFIGURACIÓN ---
+WP_BASE_URL = "https://estrategiaelite.com/wp-json/wp/v2/posts/"
+POST_MM = "3016"      # Medias Móviles
+POST_RSI = "1002"     # RSI
+POST_ESTOC = "1032"   # Estocástico
+POST_DESTINO = "1015" # Publicación de salida
+
+# --- FUNCIONES ---
+def obtener_dataframe_post(post_id):
+    url = f"{WP_BASE_URL}{post_id}"
+    response = requests.get(url)
+    response.raise_for_status()
+    contenido_html = response.json()["content"]["rendered"]
+    tablas = pd.read_html(contenido_html)
+    return tablas[0]
+
+def generar_tabla_html(df, titulo):
+    if df.empty:
+        return f"<p><strong>{titulo}</strong>: No hay confluencias.</p>"
+    else:
+        return f"<p><strong>{titulo}</strong></p>{df.to_html(index=False, classes='dataframe', border=1)}"
+
+# --- CARGAR Y UNIR DATOS ---
+df_mm = obtener_dataframe_post(POST_MM)
+df_rsi = obtener_dataframe_post(POST_RSI)
+df_estoc = obtener_dataframe_post(POST_ESTOC)
+
+# --- NORMALIZAR COLUMNA DE PRECIO ---
+for col in df_mm.columns:
+    if col.endswith("_Precio"):
+        df_mm = df_mm.rename(columns={col: "Precio Actual"})
+        break  # solo renombra la primera coincidencia
+
+# --- UNIR DATOS ---
+df = df_mm.merge(df_rsi, on="Ticker", suffixes=("", "_RSI"))
+df = df.merge(df_estoc, on="Ticker", suffixes=("", "_ESTOC"))
+
+# --- CONVERTIR COLUMNAS NUMÉRICAS ---
+cols_numericas = [col for col in df.columns if any(x in col for x in ["RSI", "Stoch", "Precio", "Apertura", "Diferencia", "D_%vsMA"])]
+for col in cols_numericas:
+    df[col] = pd.to_numeric(df[col], errors='coerce')
+
+# --- FILTROS ---
+df["Rango_OK"] = (
+    (df["D_%vsMA20"].abs() <= 2) |
+    (df["D_%vsMA50"].abs() <= 2) |
+    (df["D_%vsMA200"].abs() <= 2)
+)
+
+cond_rsi = (
+    (df["RSI_4H"] >= 80) | (df["RSI_4H"] <= 30) |
+    (df["RSI_1D"] >= 80) | (df["RSI_1D"] <= 30) |
+    (df["RSI_1W"] >= 80) | (df["RSI_1W"] <= 30)
+)
+
+cond_estoc = (
+    (df["Stoch_4H"] >= 80) | (df["Stoch_4H"] <= 20) |
+    (df["Stoch_1D"] >= 80) | (df["Stoch_1D"] <= 20) |
+    (df["Stoch_1W"] >= 80) | (df["Stoch_1W"] <= 20)
+)
+
+# --- VERIFICAR COLUMNAS EXISTENTES ---
+columnas_base = ["Ticker", "Precio Actual", "D_%vsMA20", "D_%vsMA50", "D_%vsMA200"]
+columnas_estoc = columnas_base + ["Stoch_4H", "Stoch_1D", "Stoch_1W"]
+columnas_rsi = columnas_base + ["RSI_4H", "RSI_1D", "RSI_1W"]
+
+columnas_estoc = [col for col in columnas_estoc if col in df.columns]
+columnas_rsi = [col for col in columnas_rsi if col in df.columns]
+
+# --- DATAFRAMES DE SALIDA ---
+df_estoc_final = df[df["Rango_OK"] & cond_estoc][columnas_estoc]
+df_rsi_final = df[df["Rango_OK"] & cond_rsi][columnas_rsi]
+
+# --- GENERAR HTML FINAL ---
+html_content = (
+    generar_tabla_html(df_estoc_final, "Estocástico + Medias Móviles") +
+    "<br>" +
+    generar_tabla_html(df_rsi_final, "RSI + Medias Móviles")
+)
+
+# --- ACTUALIZAR POST EN WORDPRESS ---
+url_update = f"{WP_BASE_URL}{POST_DESTINO}"
+payload = {
+    "title": f"Confluencias Técnicas - {datetime.datetime.now().strftime('%Y-%m-%d')}",
+    "content": html_content
+}
+
+response = requests.put(
+    url_update,
+    json=payload,
+    auth=(os.getenv("WORDPRESS_USER"), os.getenv("WORDPRESS_PASSWORD"))
+)
+
+if response.status_code == 200:
+    print("✅ Publicación actualizada correctamente.")
+else:
+    print(f"❌ Error al actualizar: {response.status_code} - {response.text}")
 
 
 
