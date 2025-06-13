@@ -553,112 +553,160 @@ else:
     print(f"❌ Error al actualizar: {response.status_code} - {response.text}")
 
 
-# Confluencias MA + OSC
-import pandas as pd
+# Confluencias Medias moviles + Osciladores
 import requests
+import pandas as pd
 from bs4 import BeautifulSoup
 import os
-import datetime
 
-# --- CONFIGURACIÓN ---
-WP_BASE_URL = "https://estrategiaelite.com/wp-json/wp/v2/posts/"
-POST_MM = "3016"      # Medias Móviles
-POST_RSI = "1002"     # RSI
-POST_ESTOC = "1032"   # Estocástico
-POST_DESTINO = "1015" # Publicación de salida
+# --- URLs de las páginas ---
+url_rsi = 'https://estrategiaelite.com/indice-rsi-publicacion-inicial-2025-05-11/'
+url_stoch = 'https://estrategiaelite.com/oscilador-estocastico-2025-05-11/'
+url_ma = 'https://estrategiaelite.com/medias-mobiles-acciones-indices/'
 
-# --- FUNCIONES ---
-def obtener_dataframe_post(post_id):
-    url = f"{WP_BASE_URL}{post_id}"
+# --- Función para extraer tablas de una página ---
+def get_tables_from_url(url):
     response = requests.get(url)
-    response.raise_for_status()
-    contenido_html = response.json()["content"]["rendered"]
-    tablas = pd.read_html(contenido_html)
-    return tablas[0]
+    soup = BeautifulSoup(response.content, 'html.parser')
+    return pd.read_html(str(soup))
 
-def generar_tabla_html(df, titulo):
-    if df.empty:
-        return f"<p><strong>{titulo}</strong>: No hay confluencias.</p>"
-    else:
-        return f"<p><strong>{titulo}</strong></p>{df.to_html(index=False, classes='dataframe', border=1)}"
+# --- Descargar y asignar las tablas ---
+rsi_tables = get_tables_from_url(url_rsi)
+stoch_tables = get_tables_from_url(url_stoch)
+ma_tables = get_tables_from_url(url_ma)
 
-# --- CARGAR Y UNIR DATOS ---
-df_mm = obtener_dataframe_post(POST_MM)
-df_rsi = obtener_dataframe_post(POST_RSI)
-df_estoc = obtener_dataframe_post(POST_ESTOC)
+# Asumiendo que el orden es correcto:
+df_rsi = rsi_tables[0]
+df_stoch = stoch_tables[0]
 
-# --- NORMALIZAR COLUMNA DE PRECIO ---
-for col in df_mm.columns:
-    if col.endswith("_Precio"):
-        df_mm = df_mm.rename(columns={col: "Precio Actual"})
-        break  # solo renombra la primera coincidencia
+df_ma_daily = ma_tables[0]
+df_ma_weekly = ma_tables[1]
+df_ma_monthly = ma_tables[2]
 
-# --- UNIR DATOS ---
-df = df_mm.merge(df_rsi, on="Ticker", suffixes=("", "_RSI"))
-df = df.merge(df_estoc, on="Ticker", suffixes=("", "_ESTOC"))
+# --- Función para verificar si rango está dentro de ±1% ---
+def is_near_ma(rango):
+    return abs(rango) <= 1.0
 
-# --- CONVERTIR COLUMNAS NUMÉRICAS ---
-cols_numericas = [col for col in df.columns if any(x in col for x in ["RSI", "Stoch", "Precio", "Apertura", "Diferencia", "D_%vsMA"])]
-for col in cols_numericas:
-    df[col] = pd.to_numeric(df[col], errors='coerce')
+# --- Inicializar listas de resultados ---
+rsi_resultados = []
+stoch_resultados = []
 
-# --- FILTROS ---
-df["Rango_OK"] = (
-    (df["D_%vsMA20"].abs() <= 2) |
-    (df["D_%vsMA50"].abs() <= 2) |
-    (df["D_%vsMA200"].abs() <= 2)
-)
+# --- Unificar tickers ---
+tickers = set(df_rsi['Ticker']) | set(df_stoch['Ticker']) | set(df_ma_daily['Ticker'])
 
-cond_rsi = (
-    (df["RSI_4H"] >= 80) | (df["RSI_4H"] <= 30) |
-    (df["RSI_1D"] >= 80) | (df["RSI_1D"] <= 30) |
-    (df["RSI_1W"] >= 80) | (df["RSI_1W"] <= 30)
-)
+# --- Procesar cada ticker ---
+for ticker in tickers:
+    rsi_row = df_rsi[df_rsi['Ticker'] == ticker]
+    stoch_row = df_stoch[df_stoch['Ticker'] == ticker]
+    row_daily = df_ma_daily[df_ma_daily['Ticker'] == ticker]
+    row_weekly = df_ma_weekly[df_ma_weekly['Ticker'] == ticker]
+    row_monthly = df_ma_monthly[df_ma_monthly['Ticker'] == ticker]
 
-cond_estoc = (
-    (df["Stoch_4H"] >= 80) | (df["Stoch_4H"] <= 20) |
-    (df["Stoch_1D"] >= 80) | (df["Stoch_1D"] <= 20) |
-    (df["Stoch_1W"] >= 80) | (df["Stoch_1W"] <= 20)
-)
+    # Recolectar info de precios y rangos
+    rangos_ma = []
 
-# --- VERIFICAR COLUMNAS EXISTENTES ---
-columnas_base = ["Ticker", "Precio Actual", "D_%vsMA20", "D_%vsMA50", "D_%vsMA200"]
-columnas_estoc = columnas_base + ["Stoch_4H", "Stoch_1D", "Stoch_1W"]
-columnas_rsi = columnas_base + ["RSI_4H", "RSI_1D", "RSI_1W"]
+    def add_ma(source_row, prefix):
+        if not source_row.empty:
+            for ma in ['20', '50', '200']:
+                col_pct = f'{prefix}_%vsMA{ma}'
+                col_ma = f'{prefix}_MA{ma}'
+                if col_pct in source_row.columns and col_ma in source_row.columns:
+                    try:
+                        rango = float(source_row[col_pct].values[0])
+                        precio_ma = float(source_row[col_ma].values[0])
+                        if is_near_ma(rango):
+                            rangos_ma.append({
+                                'Media Móvil': f'{prefix}_MA{ma}',
+                                'Precio Media Móvil': precio_ma,
+                                'Rango (%)': round(rango, 2)
+                            })
+                    except:
+                        continue
 
-columnas_estoc = [col for col in columnas_estoc if col in df.columns]
-columnas_rsi = [col for col in columnas_rsi if col in df.columns]
+    add_ma(row_daily, 'D')
+    add_ma(row_weekly, 'W')
+    add_ma(row_monthly, 'M')
 
-# --- DATAFRAMES DE SALIDA ---
-df_estoc_final = df[df["Rango_OK"] & cond_estoc][columnas_estoc]
-df_rsi_final = df[df["Rango_OK"] & cond_rsi][columnas_rsi]
+    if not rangos_ma:
+        continue
 
-# --- GENERAR HTML FINAL ---
-html_content = (
-    generar_tabla_html(df_estoc_final, "Estocástico + Medias Móviles") +
-    "<br>" +
-    generar_tabla_html(df_rsi_final, "RSI + Medias Móviles")
-)
+    # Obtener precio actual
+    precio_actual = None
+    for df in [row_daily, row_weekly, row_monthly]:
+        if not df.empty and 'Precio Actual' in df.columns:
+            precio_actual = float(df['Precio Actual'].values[0])
+            break
 
-# --- ACTUALIZAR POST EN WORDPRESS ---
-url_update = f"{WP_BASE_URL}{POST_DESTINO}"
-payload = {
-    "title": f"Confluencias Técnicas - {datetime.datetime.now().strftime('%Y-%m-%d')}",
-    "content": html_content
+    # RSI
+    if not rsi_row.empty:
+        for col in rsi_row.columns:
+            if 'RSI_' in col:
+                try:
+                    valor = float(rsi_row[col].values[0])
+                    if valor <= 30 or valor >= 70:
+                        for match in rangos_ma:
+                            rsi_resultados.append({
+                                'Ticker': ticker,
+                                'Precio Actual': precio_actual,
+                                'Media Móvil': match['Media Móvil'],
+                                'Precio Media Móvil': match['Precio Media Móvil'],
+                                'Rango (%)': match['Rango (%)'],
+                                'RSI (temporalidad)': col.replace("RSI_", ""),
+                                'Valor': valor
+                            })
+                except:
+                    continue
+
+    # Estocástico
+    if not stoch_row.empty:
+        for col in stoch_row.columns:
+            if 'Stoch_' in col:
+                try:
+                    valor = float(stoch_row[col].values[0])
+                    if valor <= 20 or valor >= 80:
+                        for match in rangos_ma:
+                            stoch_resultados.append({
+                                'Ticker': ticker,
+                                'Precio Actual': precio_actual,
+                                'Media Móvil': match['Media Móvil'],
+                                'Precio Media Móvil': match['Precio Media Móvil'],
+                                'Rango (%)': match['Rango (%)'],
+                                'Stoch (temporalidad)': col.replace("Stoch_", ""),
+                                'Valor': valor
+                            })
+                except:
+                    continue
+
+# --- Crear dataframes finales ---
+df_rsi_final = pd.DataFrame(rsi_resultados)
+df_stoch_final = pd.DataFrame(stoch_resultados)
+
+# --- Convertir los dataframes a HTML ---
+html_rsi = "<h4> Confluencias RSI + MA</h4>" + df_rsi_final.to_html(index=False, escape=False)
+html_stoch = "<h4> Confluencias Stoch + MA</h4>" + df_stoch_final.to_html(index=False, escape=False)
+html_tabla = html_rsi + "<br><br>" + html_stoch
+
+# --- Datos para la actualización del post ---
+wordpress_url = "https://estrategiaelite.com/wp-json/wp/v2/posts/1015"
+titulo = "🔄 Actualización Confluencias: Osciladores + Medias Móviles"
+
+post_data = {
+    "title": titulo,
+    "content": html_tabla
 }
 
+# --- Enviar actualización ---
 response = requests.put(
-    url_update,
-    json=payload,
+    wordpress_url,
+    json=post_data,
     auth=(os.getenv("WORDPRESS_USER"), os.getenv("WORDPRESS_PASSWORD"))
 )
 
+# --- Resultado ---
 if response.status_code == 200:
-    print("✅ Publicación actualizada correctamente.")
+    print("✅ ¡Post actualizado con éxito!")
 else:
-    print(f"❌ Error al actualizar: {response.status_code} - {response.text}")
-
-
+    print(f"❌ Error al actualizar post: {response.status_code}, {response.text}")
 
 # BANDAS DE BOLLINGER
 
