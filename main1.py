@@ -734,7 +734,7 @@ html_stoch = "<h2>📊 Confluencias Stoch + MA</h2>" + df_stoch_final.to_html(in
 html_tabla = html_rsi + "<br><br>" + html_stoch
 
 # --- Actualizar publicación en WordPress ---
-wordpress_url = "https://estrategiaelite.com/wp-json/wp/v2/posts/1225"
+wordpress_url = "https://estrategiaelite.com/wp-json/wp/v2/posts/1198"
 titulo = "🔄 Actualización Confluencias Forex: Osciladores + Medias Móviles"
 
 post_data = {
