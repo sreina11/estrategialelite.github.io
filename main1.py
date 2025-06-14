@@ -851,135 +851,121 @@ else:
 
 # Aperturas Mensuales y Osciladores
 
-import requests
-import datetime
 import pandas as pd
+from bs4 import BeautifulSoup
+from io import StringIO
+import requests
 import os
-from tradingview_ta import TA_Handler, Interval
 
-# 📌 POST WORDPRESS
-post_id = "1225"
-wordpress_url = f"https://estrategiaelite.com/wp-json/wp/v2/posts/{post_id}"
+# --- URLs de origen ---
+url_rsi = "https://estrategiaelite.com/indice-rsi-publicacion-inicial-2025-05-18/"
+url_estoc = "https://estrategiaelite.com/oscilador-estocastico-publicacion-inicial-2025-05-18/"
+url_aperturas = "https://estrategiaelite.com/fx-aperturas-y-rango/"
 
-# 📌 ACTIVOS A EVALUAR
-activos = {
-    "USDJPY": "FX", "USDCOP": "FX", "USDCAD": "FX", "USDCHF": "FX",
-    "GBPUSD": "FX", "GBPJPY": "FX", "EURAUD": "FX", "EURUSD": "FX",
-    "EURJPY": "FX", "EURGBP": "FX", "AUDUSD": "FX", "AUDJPY": "FX",
-    "NZDUSD": "FX", "CHFJPY": "FX", "CADJPY": "FX", "CADCHF": "FX",
-    "XAUUSD": "OANDA", "DXY": "TVC"
+# --- Corrección de nombres entre formatos ---
+ticker_map = {
+    "usdjpy": "JPY=X",
+    "usdcad": "CAD=X",
+    "usdchf": "CHF=X"
 }
 
-RANGO = 0.005  # ±0.5%
+def obtener_tabla(url):
+    r = requests.get(url)
+    soup = BeautifulSoup(r.content, "html.parser")
+    table = soup.find("table")
+    return pd.read_html(StringIO(str(table)))[0] if table else pd.DataFrame()
 
-# 📌 FUNCIONES
-def obtener_dato(handler, campo):
-    try:
-        return handler.get_analysis().indicators.get(campo)
-    except:
-        return None
+# --- Cargar tablas ---
+df_rsi = obtener_tabla(url_rsi)
+df_estoc = obtener_tabla(url_estoc)
+df_aper = obtener_tabla(url_aperturas)
 
-def obtener_fecha_ultima_apertura():
-    hoy = datetime.date.today()
-    return datetime.date(hoy.year, hoy.month, 1).strftime("%Y-%m")
+# --- Función de normalización de ticker ---
+def normalizar_ticker(nombre):
+    nombre = str(nombre).lower()
+    return ticker_map.get(nombre, nombre.upper() + "=X")
 
-def obtener_indicadores(activo, exchange):
-    resultado = {"RSI": {}, "Stoch": {}}
-    intervalos = {
-        "4H": Interval.INTERVAL_4_HOURS,
-        "1D": Interval.INTERVAL_1_DAY,
-        "1W": Interval.INTERVAL_1_WEEK,
-        "1M": Interval.INTERVAL_1_MONTH,
-    }
+# --- Filtrar aperturas con variación en rango ±0.5% ---
+aper_cols_pct = [col for col in df_aper.columns if "(%)" in col]
+filtrados = []
 
-    for key, intervalo in intervalos.items():
-        try:
-            handler = TA_Handler(
-                symbol=activo,
-                exchange=exchange,
-                screener="forex" if exchange == "FX" else "cfd",
-                interval=intervalo
-            )
-            rsi = obtener_dato(handler, "RSI")
-            stoch = obtener_dato(handler, "Stoch.K")
-            resultado["RSI"][key] = round(rsi, 2) if rsi else None
-            resultado["Stoch"][key] = round(stoch, 2) if stoch else None
-        except:
-            resultado["RSI"][key] = None
-            resultado["Stoch"][key] = None
+for _, row in df_aper.iterrows():
+    for col in aper_cols_pct:
+        val = row[col]
+        if pd.notnull(val) and -0.5 <= val <= 0.5:
+            fecha_apertura = col.replace(" (%)", "")
+            filtrados.append({
+                "Ticker": row["Ticker"],
+                "Precio Actual": row["Precio Actual"],
+                "Fecha Apertura": fecha_apertura,
+                "Variación (%)": round(val, 2)
+            })
 
-    return resultado
+df_aper_filtrado = pd.DataFrame(filtrados)
 
-def obtener_precio_actual(activo, exchange):
-    try:
-        handler = TA_Handler(
-            symbol=activo,
-            exchange=exchange,
-            screener="forex" if exchange == "FX" else "cfd",
-            interval=Interval.INTERVAL_1_DAY
-        )
-        return handler.get_analysis().indicators.get("close")
-    except:
-        return None
+# --- Procesar RSI ---
+rsi_resultado = []
+if not df_rsi.empty:
+    df_rsi["ticker_norm"] = df_rsi["Ticker"].str.lower()
+    df_rsi["Ticker Apertura"] = df_rsi["ticker_norm"].apply(normalizar_ticker)
+    rsi_temporalidades = [col for col in df_rsi.columns if "RSI" in col.upper()]
 
-def obtener_apertura_mensual(activo, exchange):
-    try:
-        handler = TA_Handler(
-            symbol=activo,
-            exchange=exchange,
-            screener="forex" if exchange == "FX" else "cfd",
-            interval=Interval.INTERVAL_1_MONTH
-        )
-        return handler.get_analysis().indicators.get("open")
-    except:
-        return None
+    for _, rsi_row in df_rsi.iterrows():
+        for temp in rsi_temporalidades:
+            valor = rsi_row[temp]
+            if pd.notnull(valor) and (valor <= 30 or valor >= 70):
+                ticker_normalizado = rsi_row["Ticker Apertura"]
+                df_match = df_aper_filtrado[df_aper_filtrado["Ticker"] == ticker_normalizado]
+                for _, match in df_match.iterrows():
+                    rsi_resultado.append({
+                        "Ticker": match["Ticker"],
+                        "Precio Actual": match["Precio Actual"],
+                        "Fecha Apertura": match["Fecha Apertura"],
+                        "Variación (%)": match["Variación (%)"],
+                        "Temporalidad RSI": temp
+                    })
 
-# 📌 PROCESAMIENTO
-filas = []
-for activo, mercado in activos.items():
-    apertura = obtener_apertura_mensual(activo, mercado)
-    precio = obtener_precio_actual(activo, mercado)
+df_rsi_resultado = pd.DataFrame(rsi_resultado)
 
-    if apertura and precio and abs(precio - apertura) / apertura <= RANGO:
-        indicadores = obtener_indicadores(activo, mercado)
-        fila = {
-            "Ticker": activo,
-            "Mes": obtener_fecha_ultima_apertura(),
-            "Apertura Mensual": round(apertura, 4),
-            "Precio Actual": round(precio, 4),
-            "Diferencia (%)": round((precio - apertura) / apertura * 100, 2),
-            "RSI_4H": indicadores["RSI"]["4H"],
-            "RSI_1D": indicadores["RSI"]["1D"],
-            "RSI_1W": indicadores["RSI"]["1W"],
-            "RSI_1M": indicadores["RSI"]["1M"],
-            "Stoch_4H": indicadores["Stoch"]["4H"],
-            "Stoch_1D": indicadores["Stoch"]["1D"],
-            "Stoch_1W": indicadores["Stoch"]["1W"],
-            "Stoch_1M": indicadores["Stoch"]["1M"]
-        }
-        filas.append(fila)
+# --- Procesar Estocástico ---
+estoc_resultado = []
+if not df_estoc.empty:
+    df_estoc["ticker_norm"] = df_estoc["Ticker"].str.lower()
+    df_estoc["Ticker Apertura"] = df_estoc["ticker_norm"].apply(normalizar_ticker)
+    estoc_temporalidades = [col for col in df_estoc.columns if "stoch" in col.lower()]
 
-# 📌 DATAFRAME Y HTML
-df = pd.DataFrame(filas)
+    for _, est_row in df_estoc.iterrows():
+        for temp in estoc_temporalidades:
+            valor = est_row[temp]
+            if pd.notnull(valor) and (valor <= 20 or valor >= 80):
+                ticker_normalizado = est_row["Ticker Apertura"]
+                df_match = df_aper_filtrado[df_aper_filtrado["Ticker"] == ticker_normalizado]
+                for _, match in df_match.iterrows():
+                    estoc_resultado.append({
+                        "Ticker": match["Ticker"],
+                        "Precio Actual": match["Precio Actual"],
+                        "Fecha Apertura": match["Fecha Apertura"],
+                        "Variación (%)": match["Variación (%)"],
+                        "Temporalidad Estocástico": temp
+                    })
 
-def generar_tabla_html(df):
-    estilos = """
-    <style>
-        table {border-collapse: collapse; width: 100%; font-family: Arial;}
-        th {background-color: #0073aa; color: white; font-weight: bold; padding: 8px; border: 1px solid #ddd;}
-        td {padding: 8px; border: 1px solid #ddd; text-align: center;}
-        tr:nth-child(even) {background-color: #f9f9f9;}
-    </style>
-    """
-    return estilos + df.to_html(index=False, escape=False)
+df_estoc_resultado = pd.DataFrame(estoc_resultado)
 
-html_tabla = generar_tabla_html(df)
-titulo = f"Aperturas MO + Osciladores ({datetime.datetime.now().strftime('%Y-%m-%d')})"
+# --- Generar HTML ---
+html = ""
+if not df_rsi_resultado.empty:
+    html += "<h2>📊 Confluencias RSI + Aperturas (±0.5%)</h2>"
+    html += df_rsi_resultado.to_html(index=False, border=0, justify="center", classes="forex-table")
 
-# 📌 ACTUALIZACIÓN DEL POST
+if not df_estoc_resultado.empty:
+    html += "<br><h2>📊 Confluencias Estocástico + Aperturas (±0.5%)</h2>"
+    html += df_estoc_resultado.to_html(index=False, border=0, justify="center", classes="forex-table")
+
+# --- Publicar en WordPress (post ID 1225) ---
+wordpress_url = "https://estrategiaelite.com/wp-json/wp/v2/posts/1225"
 post_data = {
-    "title": titulo,
-    "content": html_tabla
+    "title": "📈 Confluencias Osciladores + Aperturas en Rango",
+    "content": html
 }
 
 response = requests.put(
@@ -991,7 +977,7 @@ response = requests.put(
 if response.status_code == 200:
     print("✅ ¡Post actualizado con éxito!")
 else:
-    print(f"❌ Error al actualizar post: {response.status_code}, {response.text}")
+    print(f"❌ Error: {response.status_code} - {response.text}")
 
 # POST ANALISIS DE MERCADOS
 
