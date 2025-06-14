@@ -467,148 +467,279 @@ if response.status_code == 200:
 else:
     print(f"❌ Error al actualizar en WordPress: {response.status_code}, {response.text}")
 
-# CONFLUENCIAS MEDIAS MOVILES Y OSCILADORES 
+# medias mobiles Precio y Rango
+
+import yfinance as yf
+import pandas as pd
 import requests
 import os
 import datetime
-import pandas as pd
-from tradingview_ta import TA_Handler, Interval
 
-# 📌 Datos de WordPress
-post_id = "1198"
-wordpress_url = f"https://estrategiaelite.com/wp-json/wp/v2/posts/{post_id}"
+# Activos (sin USDCOP)
+tickers = [
+    "JPY=X",     # USDJPY
+    "CAD=X",     # USDCAD
+    "CHF=X",     # USDCHF
+    "GBPUSD=X",  # GBPUSD
+    "GBPJPY=X",  # GBPJPY
+    "EURAUD=X",  # EURAUD
+    "EURUSD=X",  # EURUSD
+    "EURJPY=X",  # EURJPY
+    "EURGBP=X",  # EURGBP
+    "AUDUSD=X",  # AUDUSD
+    "AUDJPY=X",  # AUDJPY
+    "NZDUSD=X",  # NZDUSD
+    "CHFJPY=X",  # CHFJPY
+    "CADJPY=X",  # CADJPY
+    "CADCHF=X",  # CADCHF
+    "XAUUSD=X",  # Oro vs USD
+    "DX-Y.NYB"   # DXY
+]
 
-def aplicar_formato(valor, decimales):
-    return round(valor, decimales) if valor is not None else None
+# Calcular el % de diferencia entre precio y media móvil
+def pct_diff(price, ma):
+    return round(((price - ma) / ma) * 100, 2) if price and ma else None
 
-# 📊 Activos y Exchanges
-activos = {
-    "USDJPY": "FX", "USDCAD": "FX", "USDCHF": "FX", "GBPUSD": "FX",
-    "GBPJPY": "FX", "EURAUD": "FX", "EURUSD": "FX", "EURJPY": "FX",
-    "EURGBP": "FX", "AUDUSD": "FX", "AUDJPY": "FX", "NZDUSD": "FX",
-    "CHFJPY": "FX", "CADJPY": "FX", "CADCHF": "FX", "XAUUSD": "OANDA",
-    "DXY": "TVC"
-}
-
-# 🕒 Intervalos
-intervalos_ma = {
-    "Semanal": Interval.INTERVAL_1_WEEK,
-    "Mensual": Interval.INTERVAL_1_MONTH
-}
-intervalos_osciladores = {
-    "RSI_4H": Interval.INTERVAL_4_HOURS, "RSI_1D": Interval.INTERVAL_1_DAY,
-    "RSI_1W": Interval.INTERVAL_1_WEEK, "RSI_1M": Interval.INTERVAL_1_MONTH,
-    "Stoch_4H": Interval.INTERVAL_4_HOURS, "Stoch_1D": Interval.INTERVAL_1_DAY,
-    "Stoch_1W": Interval.INTERVAL_1_WEEK, "Stoch_1M": Interval.INTERVAL_1_MONTH
-}
-
-# 📊 Obtener datos de TradingView
-confluencias = []
-
-for activo, exchange in activos.items():
-    fila = {"Ticker": activo}
+# Función para obtener medias móviles en la temporalidad dada
+def get_ma_data(ticker, interval, label):
     try:
-        # Obtener osciladores
-        for nombre, intervalo in intervalos_osciladores.items():
-            handler = TA_Handler(symbol=activo, exchange=exchange,
-                                 screener="forex" if exchange == "FX" else "cfd",
-                                 interval=intervalo)
-            analisis = handler.get_analysis()
-            if "RSI" in nombre:
-                fila[nombre] = aplicar_formato(analisis.indicators.get("RSI"), 2)
-            elif "Stoch" in nombre:
-                fila[nombre] = aplicar_formato(analisis.indicators.get("Stoch.K"), 2)
+        t = yf.Ticker(ticker)
+        hist = t.history(period="max", interval=interval, auto_adjust=True)
+        hist = hist.dropna(subset=["Close"])
 
-        # Obtener precios y medias móviles
-        for periodo, intervalo in intervalos_ma.items():
-            handler = TA_Handler(symbol=activo, exchange=exchange,
-                                 screener="forex" if exchange == "FX" else "cfd",
-                                 interval=intervalo)
-            analisis = handler.get_analysis()
+        close = hist['Close'].iloc[-1] if not hist.empty else None
+        ma20 = hist['Close'].rolling(window=20).mean().iloc[-1] if len(hist) >= 20 else None
+        ma50 = hist['Close'].rolling(window=50).mean().iloc[-1] if len(hist) >= 50 else None
+        ma200 = hist['Close'].rolling(window=200).mean().iloc[-1] if len(hist) >= 200 else None
 
-            precio = aplicar_formato(analisis.indicators.get("close"), 4)
-            ma200 = aplicar_formato(analisis.indicators.get("SMA200"), 4)
-            ma50 = aplicar_formato(analisis.indicators.get("SMA50"), 4)
-            ma20 = aplicar_formato(analisis.indicators.get("SMA20"), 4)
-
-            if precio:
-                fila["Precio"] = precio
-                for ma, nombre_ma in [(ma200, "MA200"), (ma50, "MA50"), (ma20, "MA20")]:
-                    fila[f"{nombre_ma}_{periodo}"] = ma
-                    if ma:
-                        rango = aplicar_formato(((precio - ma) / ma) * 100, 1)
-                        fila[f"Rango_{nombre_ma}_{periodo}"] = rango
+        return pd.Series({
+            'Ticker': ticker,
+            'Precio Actual': round(close, 4) if close else None,
+            f'{label}_MA20': round(ma20, 4) if ma20 else None,
+            f'{label}_MA50': round(ma50, 4) if ma50 else None,
+            f'{label}_MA200': round(ma200, 4) if ma200 else None,
+            f'{label}_%vsMA20': pct_diff(close, ma20),
+            f'{label}_%vsMA50': pct_diff(close, ma50),
+            f'{label}_%vsMA200': pct_diff(close, ma200),
+        })
 
     except Exception as e:
-        print(f"⚠️ Error con {activo}: {e}")
+        print(f"⚠️ Error en {ticker} ({label}): {e}")
+        return pd.Series({
+            'Ticker': ticker,
+            'Precio Actual': None,
+            f'{label}_MA20': None,
+            f'{label}_MA50': None,
+            f'{label}_MA200': None,
+            f'{label}_%vsMA20': None,
+            f'{label}_%vsMA50': None,
+            f'{label}_%vsMA200': None,
+        })
+
+# Obtener los dataframes por cada temporalidad
+df_daily = pd.DataFrame([get_ma_data(ticker, "1d", "D") for ticker in tickers])
+df_weekly = pd.DataFrame([get_ma_data(ticker, "1wk", "W") for ticker in tickers])
+df_monthly = pd.DataFrame([get_ma_data(ticker, "1mo", "M") for ticker in tickers])
+
+# Convertir a tabla HTML
+def to_html_table(df, title):
+    return f"<h2>{title}</h2>" + df.to_html(index=False, border=0, classes="wp-block-table", justify='center')
+
+# Generar contenido HTML con la fecha de actualización
+html_content = (
+    f"<p>Última actualización: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}</p>"
+    + to_html_table(df_daily, "Media Móvil Diaria")
+    + to_html_table(df_weekly, "Media Móvil Semanal")
+    + to_html_table(df_monthly, "Media Móvil Mensual")
+)
+
+# Actualizar el post en WordPress
+post_id = "3071"
+url = f"https://estrategiaelite.com/wp-json/wp/v2/posts/{post_id}"
+
+payload = {
+    "title": f"Resumen Técnico - {datetime.datetime.now().strftime('%Y-%m-%d')}",
+    "content": html_content
+}
+
+response = requests.put(
+    url,
+    json=payload,
+    auth=(os.getenv("WORDPRESS_USER"), os.getenv("WORDPRESS_PASSWORD"))
+)
+
+if response.status_code == 200:
+    print("✅ Publicación actualizada correctamente.")
+else:
+    print(f"❌ Error al actualizar: {response.status_code} - {response.text}")
+
+# MEDIAS CONFLUENCIAS MOVILES Y OSCILADORES 
+
+import requests
+import pandas as pd
+from bs4 import BeautifulSoup
+import os
+
+# --- Diccionario de conversión de tickers ---
+ticker_map = {
+    "JPY=X": "USDJPY",
+    "CAD=X": "USDCAD",
+    "CHF=X": "USDCHF",
+    "GBPUSD=X": "GBPUSD",
+    "GBPJPY=X": "GBPJPY",
+    "EURAUD=X": "EURAUD",
+    "EURUSD=X": "EURUSD",
+    "EURJPY=X": "EURJPY",
+    "EURGBP=X": "EURGBP",
+    "AUDUSD=X": "AUDUSD",
+    "AUDJPY=X": "AUDJPY",
+    "NZDUSD=X": "NZDUSD",
+    "CHFJPY=X": "CHFJPY",
+    "CADJPY=X": "CADJPY",
+    "CADCHF=X": "CADCHF",
+    "XAUUSD=X": "XAUUSD",
+    "DX-Y.NYB": "DXY"
+}
+
+# --- URLs actualizadas ---
+url_rsi = 'https://estrategiaelite.com/?p=1142'
+url_stoch = 'https://estrategiaelite.com/oscilador-estocastico-publicacion-inicial-2025-05-18/'
+url_ma = 'https://estrategiaelite.com/medias-mo-fx-rango-y-precios/'
+
+# --- Función para extraer tablas ---
+def get_tables_from_url(url):
+    response = requests.get(url)
+    soup = BeautifulSoup(response.content, 'html.parser')
+    return pd.read_html(str(soup))
+
+# --- Descargar y asignar las tablas ---
+rsi_tables = get_tables_from_url(url_rsi)
+stoch_tables = get_tables_from_url(url_stoch)
+ma_tables = get_tables_from_url(url_ma)
+
+df_rsi = rsi_tables[0]
+df_stoch = stoch_tables[0]
+
+df_ma_daily = ma_tables[0]
+df_ma_weekly = ma_tables[1]
+df_ma_monthly = ma_tables[2]
+
+# Convertir ticker_map en dataframe-friendly
+df_ma_daily["Ticker"] = df_ma_daily["Ticker"].map(ticker_map)
+df_ma_weekly["Ticker"] = df_ma_weekly["Ticker"].map(ticker_map)
+df_ma_monthly["Ticker"] = df_ma_monthly["Ticker"].map(ticker_map)
+
+# --- Función para verificar si el rango está dentro de ±1% ---
+def is_near_ma(rango):
+    return abs(rango) <= 1.0
+
+rsi_resultados = []
+stoch_resultados = []
+
+# --- Unificar tickers ---
+tickers = set(df_rsi['Ticker']) | set(df_stoch['Ticker']) | set(df_ma_daily['Ticker'])
+
+# --- Procesar cada ticker ---
+for ticker in tickers:
+    if pd.isna(ticker):
         continue
 
-    confluencias.append(fila)
+    rsi_row = df_rsi[df_rsi['Ticker'] == ticker]
+    stoch_row = df_stoch[df_stoch['Ticker'] == ticker]
+    row_daily = df_ma_daily[df_ma_daily['Ticker'] == ticker]
+    row_weekly = df_ma_weekly[df_ma_weekly['Ticker'] == ticker]
+    row_monthly = df_ma_monthly[df_ma_monthly['Ticker'] == ticker]
 
-# Crear DataFrame
-df = pd.DataFrame(confluencias)
+    rangos_ma = []
 
-# 🎯 Filtrar confluencias técnicas
-# Precio dentro de ±0.5% de alguna MA (semanal o mensual)
-cond_ma = df[[col for col in df.columns if col.startswith("Rango_")]].apply(
-    lambda row: any(-0.5 <= val <= 0.5 for val in row if pd.notnull(val)), axis=1
-)
+    def add_ma(source_row, prefix):
+        if not source_row.empty:
+            for ma in ['20', '50', '200']:
+                col_pct = f'{prefix}_%vsMA{ma}'
+                col_ma = f'{prefix}_MA{ma}'
+                if col_pct in source_row.columns and col_ma in source_row.columns:
+                    try:
+                        rango = float(source_row[col_pct].values[0])
+                        precio_ma = float(source_row[col_ma].values[0])
+                        if is_near_ma(rango):
+                            rangos_ma.append({
+                                'Media Móvil': f'{prefix}_MA{ma}',
+                                'Precio Media Móvil': precio_ma,
+                                'Rango (%)': round(rango, 2)
+                            })
+                    except:
+                        continue
 
-# RSI extremos
-cond_rsi = df[[col for col in df.columns if col.startswith("RSI")]].apply(
-    lambda row: any((val <= 30 or val >= 70) for val in row if pd.notnull(val)), axis=1
-)
+    add_ma(row_daily, 'D')
+    add_ma(row_weekly, 'W')
+    add_ma(row_monthly, 'M')
 
-# Stoch extremos
-cond_stoch = df[[col for col in df.columns if col.startswith("Stoch")]].apply(
-    lambda row: any((val <= 20 or val >= 80) for val in row if pd.notnull(val)), axis=1
-)
+    if not rangos_ma:
+        continue
 
-# Filtrar activos que cumplan confluencias
-df_filtrado = df[(cond_ma) & (cond_rsi | cond_stoch)].copy()
+    precio_actual = None
+    for df in [row_daily, row_weekly, row_monthly]:
+        if not df.empty and 'Precio Actual' in df.columns:
+            try:
+                precio_actual = float(df['Precio Actual'].values[0])
+                break
+            except:
+                continue
 
-# 🧱 Generar HTML organizado
-def generar_tabla_html(df):
-    estructura = "<h2>Confluencias MA + Osciladores</h2>"
+    if not rsi_row.empty:
+        for col in rsi_row.columns:
+            if 'RSI_' in col:
+                try:
+                    valor = float(rsi_row[col].values[0])
+                    if valor <= 30 or valor >= 70:
+                        for match in rangos_ma:
+                            rsi_resultados.append({
+                                'Ticker': ticker,
+                                'Precio Actual': precio_actual,
+                                'Media Móvil': match['Media Móvil'],
+                                'Precio Media Móvil': match['Precio Media Móvil'],
+                                'Rango (%)': match['Rango (%)'],
+                                'RSI (temporalidad)': col.replace("RSI_", ""),
+                                'Valor': valor
+                            })
+                except:
+                    continue
 
-    for ma_tipo in ["MA200", "MA50", "MA20"]:
-        for periodo in ["Semanal", "Mensual"]:
-            for oscilador in ["RSI", "Stoch"]:
-                titulo = f"<h3>{ma_tipo} {periodo} ±0.5% + {oscilador}</h3>"
-                columnas = ["Ticker", "Precio", f"{ma_tipo}_{periodo}", f"Rango_{ma_tipo}_{periodo}"]
+    if not stoch_row.empty:
+        for col in stoch_row.columns:
+            if 'Stoch_' in col:
+                try:
+                    valor = float(stoch_row[col].values[0])
+                    if valor <= 20 or valor >= 80:
+                        for match in rangos_ma:
+                            stoch_resultados.append({
+                                'Ticker': ticker,
+                                'Precio Actual': precio_actual,
+                                'Media Móvil': match['Media Móvil'],
+                                'Precio Media Móvil': match['Precio Media Móvil'],
+                                'Rango (%)': match['Rango (%)'],
+                                'Stoch (temporalidad)': col.replace("Stoch_", ""),
+                                'Valor': valor
+                            })
+                except:
+                    continue
 
-                if oscilador == "RSI":
-                    columnas += [c for c in df.columns if c.startswith("RSI")]
-                elif oscilador == "Stoch":
-                    columnas += [c for c in df.columns if c.startswith("Stoch")]
+# --- Crear dataframes finales ---
+df_rsi_final = pd.DataFrame(rsi_resultados)
+df_stoch_final = pd.DataFrame(stoch_resultados)
 
-                # Filtrar filas con valores válidos para ese MA y oscilador
-                subset_df = df[(df[f"Rango_{ma_tipo}_{periodo}"].between(-0.5, 0.5)) & 
-                               df[columnas].notnull().all(axis=1)].copy()
+# --- Convertir a HTML ---
+html_rsi = "<h2>📊 Confluencias RSI + MA</h2>" + df_rsi_final.to_html(index=False, escape=False)
+html_stoch = "<h2>📊 Confluencias Stoch + MA</h2>" + df_stoch_final.to_html(index=False, escape=False)
+html_tabla = html_rsi + "<br><br>" + html_stoch
 
-                # Filtrar por oscilador extremo
-                if oscilador == "RSI":
-                    subset_df = subset_df[
-                        subset_df[[c for c in df.columns if c.startswith("RSI")]].apply(
-                            lambda row: any((val <= 30 or val >= 70) for val in row if pd.notnull(val)), axis=1)
-                    ]
-                else:
-                    subset_df = subset_df[
-                        subset_df[[c for c in df.columns if c.startswith("Stoch")]].apply(
-                            lambda row: any((val <= 20 or val >= 80) for val in row if pd.notnull(val)), axis=1)
-                    ]
+# --- Actualizar publicación en WordPress ---
+wordpress_url = "https://estrategiaelite.com/wp-json/wp/v2/posts/1225"
+titulo = "🔄 Actualización Confluencias Forex: Osciladores + Medias Móviles"
 
-                if subset_df.empty:
-                    estructura += titulo + "<p>No hay confluencias</p>"
-                else:
-                    estructura += titulo + subset_df[columnas].to_html(index=False, escape=False)
-
-    return estructura
-
-# 📝 Publicar en WordPress
 post_data = {
-    "title": f"Confluencias MA + Osciladores - Actualización {datetime.datetime.now().strftime('%Y-%m-%d')}",
-    "content": generar_tabla_html(df_filtrado)
+    "title": titulo,
+    "content": html_tabla
 }
 
 response = requests.put(
@@ -617,11 +748,12 @@ response = requests.put(
     auth=(os.getenv("WORDPRESS_USER"), os.getenv("WORDPRESS_PASSWORD"))
 )
 
-# ✅ Resultado
+# --- Resultado ---
 if response.status_code == 200:
-    print("✅ ¡Publicación de confluencias actualizada exitosamente en WordPress!")
+    print("✅ ¡Post actualizado con éxito!")
 else:
-    print(f"❌ Error al actualizar confluencias: {response.status_code}, {response.text}")
+    print(f"❌ Error al actualizar post: {response.status_code}, {response.text}")
+
 
 # Aperturas Mensuales y Osciladores
 
