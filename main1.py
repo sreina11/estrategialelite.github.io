@@ -755,7 +755,6 @@ else:
     print(f"❌ Error al actualizar post: {response.status_code}, {response.text}")
 
 # APERTURAS MENSUALES PRECIO Y RANGO
-
 import yfinance as yf
 import pandas as pd
 from datetime import datetime
@@ -764,80 +763,77 @@ import requests
 import os
 
 # --- Tickers ---
-tickers = ["JPY=X", "CAD=X", "CHF=X", "GBPUSD=X", "GBPJPY=X", "EURAUD=X",
-           "EURUSD=X", "EURJPY=X", "EURGBP=X", "AUDUSD=X", "AUDJPY=X",
-           "NZDUSD=X", "CHFJPY=X", "CADJPY=X", "CADCHF=X", "DX-Y.NYB"]
+tickers = [
+    "JPY=X", "CAD=X", "CHF=X", "GBPUSD=X", "GBPJPY=X", "EURAUD=X",
+    "EURUSD=X", "EURJPY=X", "EURGBP=X", "AUDUSD=X", "AUDJPY=X",
+    "NZDUSD=X", "CHFJPY=X", "CADJPY=X", "CADCHF=X", "DX-Y.NYB"
+]
 
 # --- Fechas: primeros días de los últimos 8 meses ---
 today = datetime.today()
-dates = [today.replace(day=1) - relativedelta(months=i) for i in range(8)]
-dates = sorted(dates)  # Orden cronológico
+dates = sorted([today.replace(day=1) - relativedelta(months=i) for i in range(8)])
+
+# --- Inicializar estructuras ---
+data = []
+filtrados = []
 
 # --- Recolección de datos ---
-data = []
-
 for ticker in tickers:
     asset = yf.Ticker(ticker)
     try:
         current_price = asset.history(period="1d")["Close"].iloc[-1]
     except:
-        current_price = None
+        continue
 
-    row = {"Ticker": ticker, "Precio Actual": current_price}
+    row = {"Ticker": ticker, "Precio Actual": round(current_price, 6)}
 
     for date in dates:
+        label = date.strftime("%Y-%m-%d")
         start = date
         end = start + relativedelta(days=14)
+
         try:
             df = asset.history(start=start, end=end)
             df_month = df[df.index.month == start.month]
             if not df_month.empty:
                 open_price = df_month["Open"].iloc[0]
-                variation = round((current_price - open_price) / open_price * 100, 2) if current_price else None
-            else:
-                open_price = None
-                variation = None
-        except:
-            open_price = None
-            variation = None
+                variation = (current_price - open_price) / open_price * 100
 
-        label = date.strftime("%Y-%m-%d")
-        row[label] = round(open_price, 6) if open_price else None
-        row[f"{label} (%)"] = variation
+                row[label] = round(open_price, 6)
+                row[f"{label} (%)"] = round(variation, 2)
+
+                if -0.5 <= variation <= 0.5:
+                    filtrados.append({
+                        "Ticker": ticker,
+                        "Precio Actual": round(current_price, 6),
+                        "Fecha Apertura": label,
+                        "Variación (%)": round(variation, 2)
+                    })
+            else:
+                row[label] = None
+                row[f"{label} (%)"] = None
+        except:
+            row[label] = None
+            row[f"{label} (%)"] = None
 
     data.append(row)
 
-# --- Crear DataFrame completo ---
-df = pd.DataFrame(data)
+# --- Construcción de DataFrames ---
+df_aperturas = pd.DataFrame(data)
+df_rango_estrecho = pd.DataFrame(filtrados)
 
-# --- Filtrar activos en rango estrecho de variación: entre -0.5% y 0.5% ---
-condicion = []
-for idx, row in df.iterrows():
-    cumple = False
-    for date in dates:
-        label_pct = f"{date.strftime('%Y-%m-%d')} (%)"
-        val = row.get(label_pct)
-        if val is not None and -0.5 <= val <= 0.5:
-            cumple = True
-            break
-    if cumple:
-        condicion.append(True)
-    else:
-        condicion.append(False)
+# --- Generar HTML combinado ---
+html = "<h2>📊 Aperturas Mensuales y Variación (%) respecto al Precio Actual</h2>"
+html += df_aperturas.to_html(index=False, border=0, justify="center", classes="forex-table", float_format="%.6f")
 
-df_filtrado = df[condicion]
+html += "<br><br><h2>🎯 Activos con Variación entre −0.5% y +0.5%</h2>"
+html += df_rango_estrecho.to_html(index=False, border=0, justify="center", classes="forex-table")
 
-# --- Generar HTML de tabla limpia ---
-html_tabla = df_filtrado.to_html(index=False, border=0, justify="center", classes="forex-table", float_format="%.6f")
-
-# --- Título y configuración del post ---
-titulo = "🎯 Activos en Rango Estrecho: Apertura Mensual ±0.5%"
-
+# --- Publicar en WordPress ---
 wordpress_url = "https://estrategiaelite.com/wp-json/wp/v2/posts/3099"
-
 post_data = {
-    "title": titulo,
-    "content": html_tabla
+    "title": "📈 Confluencias Forex: Aperturas y Activos en Rango Estrecho",
+    "content": html
 }
 
 response = requests.put(
@@ -846,11 +842,11 @@ response = requests.put(
     auth=(os.getenv("WORDPRESS_USER"), os.getenv("WORDPRESS_PASSWORD"))
 )
 
-# --- Resultado ---
 if response.status_code == 200:
-    print("✅ ¡Post actualizado con activos en rango estrecho!")
+    print("✅ ¡Post actualizado con éxito!")
 else:
     print(f"❌ Error al actualizar post: {response.status_code}, {response.text}")
+
 
 
 # Aperturas Mensuales y Osciladores
