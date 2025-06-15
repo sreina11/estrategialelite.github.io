@@ -850,7 +850,6 @@ else:
 
 
 # Aperturas Mensuales y Osciladores
-
 import pandas as pd
 from bs4 import BeautifulSoup
 from io import StringIO
@@ -917,13 +916,14 @@ if not df_rsi.empty:
                 ticker_normalizado = rsi_row["Ticker Apertura"]
                 df_match = df_aper_filtrado[df_aper_filtrado["Ticker"] == ticker_normalizado]
                 for _, match in df_match.iterrows():
-                    rsi_resultado.append({
-                        "Ticker": match["Ticker"],
-                        "Precio Actual": match["Precio Actual"],
-                        "Fecha Apertura": match["Fecha Apertura"],
-                        "Variación (%)": match["Variación (%)"],
-                        "Temporalidad RSI": temp
-                    })
+                   rsi_resultado.append({
+    "Ticker": match["Ticker"],
+    "Precio Actual": match["Precio Actual"],
+    "Fecha Apertura": match["Fecha Apertura"],
+    "Variación (%)": match["Variación (%)"],
+    "Temporalidad RSI": temp,
+    "Valor RSI": round(valor, 2)
+})
 
 df_rsi_resultado = pd.DataFrame(rsi_resultado)
 
@@ -942,12 +942,13 @@ if not df_estoc.empty:
                 df_match = df_aper_filtrado[df_aper_filtrado["Ticker"] == ticker_normalizado]
                 for _, match in df_match.iterrows():
                     estoc_resultado.append({
-                        "Ticker": match["Ticker"],
-                        "Precio Actual": match["Precio Actual"],
-                        "Fecha Apertura": match["Fecha Apertura"],
-                        "Variación (%)": match["Variación (%)"],
-                        "Temporalidad Estocástico": temp
-                    })
+    "Ticker": match["Ticker"],
+    "Precio Actual": match["Precio Actual"],
+    "Fecha Apertura": match["Fecha Apertura"],
+    "Variación (%)": match["Variación (%)"],
+    "Temporalidad Estocástico": temp,
+    "Valor Estocástico": round(valor, 2)
+})
 
 df_estoc_resultado = pd.DataFrame(estoc_resultado)
 
