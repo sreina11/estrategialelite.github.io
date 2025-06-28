@@ -509,24 +509,39 @@ def get_ma_data(ticker, interval, label):
             f'{label}_%vsMA50': pct_diff(close, ma50),
             f'{label}_%vsMA200': pct_diff(close, ma200),
         })
-    
+
     except Exception as e:
         print(f"❌ Error al obtener datos de {ticker}: {e}")
         return pd.Series({'Ticker': ticker, 'Precio Actual': None})
 
-# Obtener dataframes con pausas entre solicitudes
+
+# Obtener dataframes
 df_daily = pd.DataFrame([get_ma_data(ticker, "1d", "D") for ticker in tickers])
-time.sleep(5)  # Pausa para evitar bloqueos
+time.sleep(5)
 df_weekly = pd.DataFrame([get_ma_data(ticker, "1wk", "W") for ticker in tickers])
 time.sleep(5)
 df_monthly = pd.DataFrame([get_ma_data(ticker, "1mo", "M") for ticker in tickers])
 
-# Convertir a HTML (con un poco de formato)
+# Sumar % de diferencia y ordenar por fortaleza relativa
+df_daily['D_Suma%'] = df_daily[['D_%vsMA20', 'D_%vsMA50', 'D_%vsMA200']].apply(
+    lambda row: sum([x for x in row if pd.notnull(x)]), axis=1)
+df_weekly['W_Suma%'] = df_weekly[['W_%vsMA20', 'W_%vsMA50', 'W_%vsMA200']].apply(
+    lambda row: sum([x for x in row if pd.notnull(x)]), axis=1)
+df_monthly['M_Suma%'] = df_monthly[['M_%vsMA20', 'M_%vsMA50', 'M_%vsMA200']].apply(
+    lambda row: sum([x for x in row if pd.notnull(x)]), axis=1)
+
+df_daily = df_daily.sort_values(by='D_Suma%', ascending=False)
+df_weekly = df_weekly.sort_values(by='W_Suma%', ascending=False)
+df_monthly = df_monthly.sort_values(by='M_Suma%', ascending=False)
+
+# Función HTML
 def to_html_table(df, title):
     return f"<h2>{title}</h2>" + df.to_html(index=False, border=0, classes="wp-block-table", justify='center')
 
+# Crear HTML con tablas ordenadas
 html_content = (
     f"<p>Última actualización: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}</p>"
+    + "<h2>📊 Activos ordenados por fortaleza técnica</h2>"
     + to_html_table(df_daily, "Media Móvil Diaria")
     + to_html_table(df_weekly, "Media Móvil Semanal")
     + to_html_table(df_monthly, "Media Móvil Mensual")
@@ -551,6 +566,7 @@ if response.status_code == 200:
     print("✅ Publicación actualizada correctamente.")
 else:
     print(f"❌ Error al actualizar: {response.status_code} - {response.text}")
+
 
 
 # Confluencias Medias moviles + Osciladores
