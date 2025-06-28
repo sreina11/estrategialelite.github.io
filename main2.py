@@ -250,194 +250,118 @@ if response_stoch.status_code == 200:
     print("✅ ¡Publicación del Oscilador Estocástico actualizada exitosamente en WordPress!")
 else:
     print(f"❌ Error al actualizar el Estocástico: {response_stoch.status_code}, {response_stoch.text}")
-
-# Medias mobiles Rangos
+#MEDIAS MOVILES PRECIO Y RANGO
 import pandas as pd
+import requests
 from tradingview_ta import TA_Handler, Interval
+from datetime import datetime
+import os
 
-# Lista de activos
-assets = {
+# ----------------------------
+# Configuración
+# ----------------------------
+activos = {
     "BTCUSDT": "BINANCE", "ETHUSDT": "BINANCE", "XRPUSDT": "BINANCE", "BNBUSDT": "BINANCE",
     "SOLUSDT": "BINANCE", "DOGEUSDT": "BINANCE", "ADAUSDT": "BINANCE", "AVAXUSDT": "BINANCE",
     "XLMUSDT": "BINANCE", "SHIBUSDT": "BINANCE", "LINKUSDT": "BINANCE", "SUIUSDT": "BINANCE",
     "WAXPUSDT": "BINANCE", "PAXGUSDT": "BINANCE"
 }
 
-# Intervalos
-intervals_ma = {
-    "Diario": Interval.INTERVAL_1_DAY,
-    "Semanal": Interval.INTERVAL_1_WEEK,
-    "Mensual": Interval.INTERVAL_1_MONTH
-}
-
-# Tipos de medias móviles
-ma_types = ["SMA20", "SMA50", "SMA200"]
-
-# Función para obtener los rangos
-def get_ma_ranges(asset, market):
-    result = {"Ticker": asset}
-    for ma in ma_types:
-        for label, interval in intervals_ma.items():
-            column_name = f"Rango_{ma}_{label}"
-            try:
-                handler = TA_Handler(symbol=asset, exchange=market, screener="crypto", interval=interval)
-                analysis = handler.get_analysis()
-                price = analysis.indicators.get("close")
-                ma_value = analysis.indicators.get(ma)
-
-                if price is not None and ma_value is not None:
-                    rango = ((price - ma_value) / ma_value) * 100
-                    result[column_name] = round(rango, 2)
-                else:
-                    result[column_name] = None
-            except Exception:
-                result[column_name] = None
-    return result
-
-# Recolectar todos los datos
-data = []
-for asset, market in assets.items():
-    data.append(get_ma_ranges(asset, market))
-
-# Crear DataFrame
-df_rangos = pd.DataFrame(data)
-
-# Mostrar resultado
-print(df_rangos)
-
-import requests
-import os
-from datetime import datetime
-
-# ID del post de WordPress donde se publicará el DataFrame de rangos de medias móviles
-wordpress_url = "https://www.estrategiaelite.com/wp-json/wp/v2/posts/2617"
-
-# Contenido HTML del DataFrame (se publica como tabla HTML)
-post_data = {
-    "title": f"Rangos Medias Móviles - {datetime.today().strftime('%Y-%m-%d')}",
-    "content": df_rangos.to_html(index=False, border=0, justify="center", classes="wp-block-table") if not df_rangos.empty else "<p>No se encontraron datos de medias móviles.</p>"
-}
-
-# Enviar solicitud PUT para actualizar el post
-response = requests.put(
-    wordpress_url,
-    json=post_data,
-    auth=(os.getenv("WORDPRESS_USER"), os.getenv("WORDPRESS_PASSWORD"))
-)
-
-# Verificar respuesta
-if response.status_code == 200:
-    print("✅ ¡Publicación de rangos de medias móviles actualizada en WordPress!")
-else:
-    print(f"❌ Error al actualizar la publicación: {response.status_code} - {response.text}")
-
-# Medias mobiles Precios
-
-import requests
-from tradingview_ta import TA_Handler, Interval
-import pandas as pd
-import datetime
-import os
-
-# ----------- Configuración de activos y temporalidades -----------
-activos = {
-    "ETHUSDT": "BINANCE", "XRPUSDT": "BINANCE", "BNBUSDT": "BINANCE",
-    "SOLUSDT": "BINANCE", "DOGEUSDT": "BINANCE", "ADAUSDT": "BINANCE",
-    "AVAXUSDT": "BINANCE", "XLMUSDT": "BINANCE", "BTCUSDT": "BINANCE",
-    "SHIBUSDT": "BINANCE", "LINKUSDT": "BINANCE", "ARPAUSDT": "BINANCE",
-    "WAXPUSDT": "BINANCE", "PAXGUSDT": "BINANCE"
-}
-
 temporalidades = {
-    "4H": Interval.INTERVAL_4_HOURS,  # 🔹 NUEVA TEMPORALIDAD 🔹
-    "Diario": Interval.INTERVAL_1_DAY,
-    "Semanal": Interval.INTERVAL_1_WEEK,
-    "Mensual": Interval.INTERVAL_1_MONTH
+    "D": Interval.INTERVAL_1_DAY,
+    "W": Interval.INTERVAL_1_WEEK,
+    "M": Interval.INTERVAL_1_MONTH
 }
 
-# ----------- Obtener precios actuales de medias móviles -----------
+post_id = 2617  # PUBLICAR AQUÍ
+mas = ["MA20", "MA50", "MA200"]
 
-def obtener_medias(ticker, exchange):
-    resultado = {}
-    for nombre_tf, intervalo in temporalidades.items():
+# ----------------------------
+# Obtener los datos
+# ----------------------------
+def get_data(ticker, exchange):
+    resultado = {"Ticker": ticker}
+    for tf_nombre, tf_intervalo in temporalidades.items():
         try:
-            handler = TA_Handler(
-                symbol=ticker,
-                exchange=exchange,
-                screener="crypto",
-                interval=intervalo
-            )
+            handler = TA_Handler(symbol=ticker, exchange=exchange, screener="crypto", interval=tf_intervalo)
             analysis = handler.get_analysis()
+            precio = analysis.indicators.get("close")
 
-            sma20 = analysis.indicators.get("SMA20") or analysis.indicators.get("EMA20")
-            sma50 = analysis.indicators.get("SMA50") or analysis.indicators.get("EMA50")
-            sma200 = analysis.indicators.get("SMA200") or analysis.indicators.get("EMA200")
+            resultado[f"Precio_{tf_nombre}"] = round(precio, 4) if precio else None
 
-            resultado[nombre_tf] = {
-                "MA20": round(sma20, 4) if sma20 else "N/A",
-                "MA50": round(sma50, 4) if sma50 else "N/A",
-                "MA200": round(sma200, 4) if sma200 else "N/A"
-            }
+            for ma in mas:
+                valor = analysis.indicators.get(f"SMA{ma[2:]}")
+                col_ma = f"{tf_nombre}_{ma}"
+                col_diff = f"{tf_nombre}_%vs{ma}"
+
+                resultado[col_ma] = round(valor, 4) if valor else None
+                resultado[col_diff] = round(((precio - valor) / valor) * 100, 2) if precio and valor else None
+
         except Exception as e:
-            print(f"⚠️ Error con {ticker} en {nombre_tf}: {e}")
-            resultado[nombre_tf] = {"MA20": "Err", "MA50": "Err", "MA200": "Err"}
-
+            print(f"⚠️ Error con {ticker} en {tf_nombre}: {e}")
+            for ma in mas:
+                resultado[f"{tf_nombre}_{ma}"] = None
+                resultado[f"{tf_nombre}_%vs{ma}"] = None
+            resultado[f"Precio_{tf_nombre}"] = None
     return resultado
 
-# ----------- Recolectar todos los datos -----------
+# ----------------------------
+# Recolectar datos
+# ----------------------------
+filas = [get_data(ticker, exchange) for ticker, exchange in activos.items()]
+df_full = pd.DataFrame(filas)
 
-filas = []
+# ----------------------------
+# Construir y ordenar cada timeframe
+# ----------------------------
+def preparar_df(df, tf):
+    cols = [
+        "Ticker",
+        f"Precio_{tf}",
+        f"{tf}_MA20", f"{tf}_MA50", f"{tf}_MA200",
+        f"{tf}_%vsMA20", f"{tf}_%vsMA50", f"{tf}_%vsMA200"
+    ]
+    df_tf = df[cols].copy()
+    df_tf.rename(columns={
+        f"Precio_{tf}": "Precio Actual",
+        f"{tf}_MA20": f"{tf}_MA20", f"{tf}_MA50": f"{tf}_MA50", f"{tf}_MA200": f"{tf}_MA200",
+        f"{tf}_%vsMA20": f"{tf}_%vsMA20", f"{tf}_%vsMA50": f"{tf}_%vsMA50", f"{tf}_%vsMA200": f"{tf}_%vsMA200"
+    }, inplace=True)
+    df_tf[f"{tf}_Suma%"] = df_tf[[f"{tf}_%vsMA20", f"{tf}_%vsMA50", f"{tf}_%vsMA200"]].sum(axis=1, skipna=True)
+    df_tf.sort_values(by=f"{tf}_Suma%", ascending=False, inplace=True)
+    return df_tf
 
-for ticker, exchange in activos.items():
-    datos = obtener_medias(ticker, exchange)
-    filas.append([
-        ticker,
-        datos["4H"]["MA20"], datos["4H"]["MA50"], datos["4H"]["MA200"],  # 🔹 NUEVA TEMPORALIDAD 🔹
-        datos["Diario"]["MA20"], datos["Diario"]["MA50"], datos["Diario"]["MA200"],
-        datos["Semanal"]["MA20"], datos["Semanal"]["MA50"], datos["Semanal"]["MA200"],
-        datos["Mensual"]["MA20"], datos["Mensual"]["MA50"], datos["Mensual"]["MA200"]
-    ])
+df_d = preparar_df(df_full, "D")
+df_w = preparar_df(df_full, "W")
+df_m = preparar_df(df_full, "M")
 
-columnas = [
-    "Ticker", "MA20_4H", "MA50_4H", "MA200_4H",  # 🔹 NUEVA TEMPORALIDAD 🔹
-    "MA20_D", "MA50_D", "MA200_D",
-    "MA20_W", "MA50_W", "MA200_W",
-    "MA20_M", "MA50_M", "MA200_M"
-]
+# ----------------------------
+# Publicar en WordPress
+# ----------------------------
+def to_html_table(df, title):
+    return f"<h2>{title}</h2>" + df.to_html(index=False, border=0, classes="wp-block-table", justify="center")
 
-df = pd.DataFrame(filas, columns=columnas)
-
-# ----------- Tabla HTML para WordPress -----------
-
-def tabla_html(df):
-    estilo = """
-    <style>
-        table {border-collapse: collapse; width: 100%; font-family: Arial;}
-        th, td {border: 1px solid #ccc; padding: 8px; text-align: center;}
-        th {background-color: #222; color: white;}
-    </style>
-    """
-    return estilo + df.to_html(index=False)
-
-# ----------- Publicar en WordPress (POST ID 2647) -----------
-
-wordpress_url = f"https://www.estrategiaelite.com/wp-json/wp/v2/posts/2647"
-
-post_data = {
-    "title": f"Precios de Medias Móviles - {datetime.date.today()}",
-    "content": f"<h2>Medias Móviles por Temporalidad</h2>{tabla_html(df)}"
-}
-
-response = requests.put(
-    wordpress_url,
-    auth=(os.getenv("WORDPRESS_USER"), os.getenv("WORDPRESS_PASSWORD")),
-    json=post_data
+html_content = (
+    f"<p>Última actualización: {datetime.today().strftime('%Y-%m-%d %H:%M')}</p>"
+    + "<h2>📊 Activos ordenados por fortaleza técnica</h2>"
+    + to_html_table(df_d, "Media Móvil Diaria")
+    + to_html_table(df_w, "Media Móvil Semanal")
+    + to_html_table(df_m, "Media Móvil Mensual")
 )
 
+payload = {
+    "title": f"Resumen Técnico MA - {datetime.today().strftime('%Y-%m-%d')}",
+    "content": html_content
+}
+
+url = f"https://estrategiaelite.com/wp-json/wp/v2/posts/{post_id}"
+response = requests.put(url, json=payload, auth=(os.getenv("WORDPRESS_USER"), os.getenv("WORDPRESS_PASSWORD")))
+
 if response.status_code == 200:
-    print("✅ ¡Post actualizado correctamente!")
+    print("✅ ¡Post actualizado correctamente en WordPress!")
 else:
     print(f"❌ Error al publicar: {response.status_code} - {response.text}")
+
 
 # Medias Móviles + Osciladores con Precio Actual
 import requests
@@ -520,9 +444,14 @@ for _, row in df_rsi.iterrows():
 df_rsi_cond = pd.DataFrame(condiciones_rsi)
 
 # --- Filtrar medias móviles ±1% ---
-df_medias_filtrado = df_medias.copy()
-for col in df_medias.columns[1:]:
+# Identificar columnas de diferencias porcentuales
+columnas_diferencia = [col for col in df_medias.columns if "_%vsMA" in col]
+df_medias_filtrado = df_medias[["Ticker"] + columnas_diferencia].copy()
+
+# Filtrar columnas con ±1% de diferencia
+for col in columnas_diferencia:
     df_medias_filtrado[col] = df_medias[col].apply(lambda x: x if pd.notnull(x) and abs(x) <= 1 else None)
+
 
 # --- Función para obtener confluencias ---
 def obtener_confluencias(df_osc, tipo="Estocástico"):
@@ -576,7 +505,6 @@ if respuesta.status_code == 200:
     print("✅ ¡Publicación actualizada en WordPress!")
 else:
     print(f"❌ Error al actualizar la publicación: {respuesta.status_code} - {respuesta.text}")
-
 
 # BANDAS DE BOLLINGER PRECIOS
 import requests
