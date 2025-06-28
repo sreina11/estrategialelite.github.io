@@ -3,7 +3,7 @@ name: Actualizar forex
 on:
   workflow_dispatch:  # Permite ejecución manual en Actions
   schedule:
-    - cron: '0 */120 * * *'  # Ejecuta cada 120 horas
+    - cron: '0 */1200 * * *'  # Ejecuta cada 120 horas
 
 jobs:
   update_post:
