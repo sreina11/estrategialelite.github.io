@@ -467,7 +467,7 @@ if response.status_code == 200:
 else:
     print(f"❌ Error al actualizar en WordPress: {response.status_code}, {response.text}")
 
-# medias mobiles Precio y Rango
+# medias móviles Precio y Rango
 
 import yfinance as yf
 import pandas as pd
@@ -475,32 +475,16 @@ import requests
 import os
 import datetime
 
-# Activos (sin USDCOP)
+# Lista de activos (sin USDCOP)
 tickers = [
-    "JPY=X",     # USDJPY
-    "CAD=X",     # USDCAD
-    "CHF=X",     # USDCHF
-    "GBPUSD=X",  # GBPUSD
-    "GBPJPY=X",  # GBPJPY
-    "EURAUD=X",  # EURAUD
-    "EURUSD=X",  # EURUSD
-    "EURJPY=X",  # EURJPY
-    "EURGBP=X",  # EURGBP
-    "AUDUSD=X",  # AUDUSD
-    "AUDJPY=X",  # AUDJPY
-    "NZDUSD=X",  # NZDUSD
-    "CHFJPY=X",  # CHFJPY
-    "CADJPY=X",  # CADJPY
-    "CADCHF=X",  # CADCHF
-    "XAUUSD=X",  # Oro vs USD
-    "DX-Y.NYB"   # DXY
+    "JPY=X", "CAD=X", "CHF=X", "GBPUSD=X", "GBPJPY=X", "EURAUD=X",
+    "EURUSD=X", "EURJPY=X", "EURGBP=X", "AUDUSD=X", "AUDJPY=X",
+    "NZDUSD=X", "CHFJPY=X", "CADJPY=X", "CADCHF=X", "DX-Y.NYB"
 ]
 
-# Calcular el % de diferencia entre precio y media móvil
 def pct_diff(price, ma):
     return round(((price - ma) / ma) * 100, 2) if price and ma else None
 
-# Función para obtener medias móviles en la temporalidad dada
 def get_ma_data(ticker, interval, label):
     try:
         t = yf.Ticker(ticker)
@@ -536,18 +520,31 @@ def get_ma_data(ticker, interval, label):
             f'{label}_%vsMA200': None,
         })
 
-# Obtener los dataframes por cada temporalidad
+# Obtener los dataframes por temporalidad
 df_daily = pd.DataFrame([get_ma_data(ticker, "1d", "D") for ticker in tickers])
 df_weekly = pd.DataFrame([get_ma_data(ticker, "1wk", "W") for ticker in tickers])
 df_monthly = pd.DataFrame([get_ma_data(ticker, "1mo", "M") for ticker in tickers])
+
+# Calcular suma de diferencias porcentuales y ordenar
+df_daily['D_Suma%'] = df_daily[['D_%vsMA20', 'D_%vsMA50', 'D_%vsMA200']].apply(
+    lambda row: sum([x for x in row if pd.notnull(x)]), axis=1)
+df_weekly['W_Suma%'] = df_weekly[['W_%vsMA20', 'W_%vsMA50', 'W_%vsMA200']].apply(
+    lambda row: sum([x for x in row if pd.notnull(x)]), axis=1)
+df_monthly['M_Suma%'] = df_monthly[['M_%vsMA20', 'M_%vsMA50', 'M_%vsMA200']].apply(
+    lambda row: sum([x for x in row if pd.notnull(x)]), axis=1)
+
+df_daily = df_daily.sort_values(by='D_Suma%', ascending=False)
+df_weekly = df_weekly.sort_values(by='W_Suma%', ascending=False)
+df_monthly = df_monthly.sort_values(by='M_Suma%', ascending=False)
 
 # Convertir a tabla HTML
 def to_html_table(df, title):
     return f"<h2>{title}</h2>" + df.to_html(index=False, border=0, classes="wp-block-table", justify='center')
 
-# Generar contenido HTML con la fecha de actualización
+# Generar contenido HTML
 html_content = (
     f"<p>Última actualización: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}</p>"
+    + "<h2>📊 Activos ordenados por fortaleza técnica</h2>"
     + to_html_table(df_daily, "Media Móvil Diaria")
     + to_html_table(df_weekly, "Media Móvil Semanal")
     + to_html_table(df_monthly, "Media Móvil Mensual")
@@ -572,6 +569,7 @@ if response.status_code == 200:
     print("✅ Publicación actualizada correctamente.")
 else:
     print(f"❌ Error al actualizar: {response.status_code} - {response.text}")
+
 
 # MEDIAS CONFLUENCIAS MOVILES Y OSCILADORES 
 
