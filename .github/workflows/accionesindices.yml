@@ -1,8 +1,10 @@
-name: Actualizar tecnicos en WordPress
+
+name: acciones indices
 
 on:
   workflow_dispatch:  # Permite ejecución manual en Actions
   schedule:
+    - cron: '0 */1200 * * *'  # Ejecuta cada 8 horas
    
 
 
