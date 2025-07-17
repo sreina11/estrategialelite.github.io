@@ -730,6 +730,7 @@ from tradingview_ta import TA_Handler, Interval
 import pandas as pd
 import datetime
 import os
+import time
 
 # ----------- Configuración de activos y temporalidades -----------
 assets = {
@@ -769,13 +770,15 @@ def analizar_ticker(ticker, exchange):
             precios[nombre] = {"Precio actual": None, "BB_UP": None, "BB_Low": None}
             datos_rsi[nombre] = None
             datos_stoch[nombre] = None
+        time.sleep(1.5)  # Pausa para evitar bloqueo por TradingView
 
     try:
         handler_4h = TA_Handler(symbol=ticker, exchange=exchange, screener="america", interval=Interval.INTERVAL_4_HOURS)
         analysis_4h = handler_4h.get_analysis()
         datos_rsi["4H"] = round(analysis_4h.indicators["RSI"], 2)
         datos_stoch["4H"] = round(analysis_4h.indicators["Stoch.K"], 2)
-    except:
+    except Exception as e:
+        print(f"Error en {ticker} - 4H: {e}")
         datos_rsi["4H"] = None
         datos_stoch["4H"] = None
 
@@ -790,35 +793,38 @@ for ticker, exchange in assets.items():
     precios, rsi, stoch = analizar_ticker(ticker, exchange)
 
     for timeframe in temporalidades.keys():
-        # Confluencias BB + RSI
         p = precios[timeframe]
-        if (p["Precio actual"] >= p["BB_UP"] or p["Precio actual"] <= p["BB_Low"]) and (
-            rsi["4H"] >= 70 or rsi["4H"] <= 30 or rsi[timeframe] >= 70 or rsi[timeframe] <= 30
-        ):
-            bb_rsi[timeframe].append({
-                "Ticker": ticker,
-                "Precio actual": p["Precio actual"],
-                "Precio BB_UP": p["BB_UP"],
-                "Precio BB_Low": p["BB_Low"],
-                "RSI_4H": rsi["4H"],
-                "RSI Diario": rsi.get("Diario"),
-                "RSI Semanal": rsi.get("Semanal"),
-                "RSI Mensual": rsi.get("Mensual")
-            })
 
-        # Confluencias BB + Estocástico
-        if (p["Precio actual"] >= p["BB_UP"] or p["Precio actual"] <= p["BB_Low"]) and (
-            stoch["4H"] >= 80 or stoch["4H"] <= 20 or stoch[timeframe] >= 80 or stoch[timeframe] <= 20
-        ):
-            bb_stoch[timeframe].append({
-                "Ticker": ticker,
-                "Precio actual": p["Precio actual"],
-                "Precio BB_UP": p["BB_UP"],
-                "Precio BB_Low": p["BB_Low"],
-                "STOCH_4H": stoch["4H"],
-                "STOCH Diario": stoch.get("Diario"),
-                "STOCH Semanal": stoch.get("Semanal"),
-            })
+        # Validar que los datos no sean None
+        if all(p[k] is not None for k in ["Precio actual", "BB_UP", "BB_Low"]) and \
+           rsi["4H"] is not None and rsi[timeframe] is not None:
+            if (p["Precio actual"] >= p["BB_UP"] or p["Precio actual"] <= p["BB_Low"]) and \
+               (rsi["4H"] >= 70 or rsi["4H"] <= 30 or rsi[timeframe] >= 70 or rsi[timeframe] <= 30):
+                bb_rsi[timeframe].append({
+                    "Ticker": ticker,
+                    "Precio actual": p["Precio actual"],
+                    "Precio BB_UP": p["BB_UP"],
+                    "Precio BB_Low": p["BB_Low"],
+                    "RSI_4H": rsi["4H"],
+                    "RSI Diario": rsi.get("Diario"),
+                    "RSI Semanal": rsi.get("Semanal"),
+                    "RSI Mensual": rsi.get("Mensual")
+                })
+
+        if all(p[k] is not None for k in ["Precio actual", "BB_UP", "BB_Low"]) and \
+           stoch["4H"] is not None and stoch[timeframe] is not None:
+            if (p["Precio actual"] >= p["BB_UP"] or p["Precio actual"] <= p["BB_Low"]) and \
+               (stoch["4H"] >= 80 or stoch["4H"] <= 20 or stoch[timeframe] >= 80 or stoch[timeframe] <= 20):
+                bb_stoch[timeframe].append({
+                    "Ticker": ticker,
+                    "Precio actual": p["Precio actual"],
+                    "Precio BB_UP": p["BB_UP"],
+                    "Precio BB_Low": p["BB_Low"],
+                    "STOCH_4H": stoch["4H"],
+                    "STOCH Diario": stoch.get("Diario"),
+                    "STOCH Semanal": stoch.get("Semanal"),
+                    "STOCH Mensual": stoch.get("Mensual")
+                })
 
 # ----------- Funciones para dar formato HTML -----------
 
@@ -876,24 +882,15 @@ for tf in ["Diario", "Semanal", "Mensual"]:
 
 # ----------- Publicar en WordPress -----------
 
-post_id = "1028"
-url = f"https://estrategiaelite.com/wp-json/wp/v2/posts/{post_id}"
-
-payload = {
-    "title": f"Confluencias de Osciladores y Bandas de Bollinger - {datetime.datetime.now().strftime('%Y-%m-%d')}",
-    "content": contenido
-}
-
-response = requests.put(
-    url,
-    json=payload,
-    auth=(os.getenv("WORDPRESS_USER"), os.getenv("WORDPRESS_PASSWORD"))
-)
-
-if response.status_code == 200:
-    print("✅ Publicación actualizada correctamente.")
+if not any(bb_rsi.values()) and not any(bb_stoch.values()):
+    print("No se encontraron confluencias. Finalizando sin publicar.")
 else:
-    print(f"❌ Error al actualizar: {response.status_code} - {response.text}")
+    post_id = "1028"
+    url = f"https://estrategiaelite.com/wp-json/wp/v2/posts/{post_id}"
+
+    payload = {
+        "title": f"Confluencias de Osciladores y Bandas de Bollinger - {datetime.datetime.now().strftime('%Y-%m-%d')}",
+
 
 # INDICADORES ECONOMICOS
 
