@@ -888,9 +888,21 @@ else:
     post_id = "1028"
     url = f"https://estrategiaelite.com/wp-json/wp/v2/posts/{post_id}"
 
-    payload = {
+       payload = {
         "title": f"Confluencias de Osciladores y Bandas de Bollinger - {datetime.datetime.now().strftime('%Y-%m-%d')}",
+        "content": contenido
+    }
 
+    response = requests.put(
+        url,
+        json=payload,
+        auth=(os.getenv("WORDPRESS_USER"), os.getenv("WORDPRESS_PASSWORD"))
+    )
+
+    if response.status_code == 200:
+        print("Publicación actualizada correctamente.")
+    else:
+        print(f"Error al actualizar: {response.status_code} - {response.text}")
 
 # INDICADORES ECONOMICOS
 
