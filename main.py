@@ -6,7 +6,6 @@ import datetime
 activos = {
     "SPY": "AMEX",
     "DJI": "DJI",
-    "NDX": "NASDAQ",
     "MSFT": "NASDAQ",
     "GOOGL": "NASDAQ",
     "META": "NASDAQ",
@@ -145,7 +144,7 @@ import datetime
 
 # Lista de activos y mercados
 activos = {
-    "SPY": "AMEX", "DJI": "DJI", "NDX": "NASDAQ", "MSFT": "NASDAQ", "GOOGL": "NASDAQ",
+    "SPY": "AMEX", "DJI": "DJI", "MSFT": "NASDAQ", "GOOGL": "NASDAQ",
     "META": "NASDAQ", "IBM": "NYSE", "V": "NYSE", "JPM": "NYSE", "MA": "NYSE",
     "AAPL": "NASDAQ", "AMD": "NASDAQ", "NVDA": "NASDAQ", "AMZN": "NASDAQ", "KO": "NYSE",
     "NKE": "NYSE", "DIS": "NYSE", "MCD": "NYSE", "NFLX": "NASDAQ", "CAT": "NYSE",
@@ -254,7 +253,7 @@ from datetime import datetime, timedelta
 
 # Definir los tickers y sus mercados
 tickers_info = {
-    "SPY": "AMEX", "^DJI": "DJI", "NDX": "NASDAQ", "MSFT": "NASDAQ", "GOOGL": "NASDAQ",
+    "SPY": "AMEX", "^DJI": "DJI", "MSFT": "NASDAQ", "GOOGL": "NASDAQ",
     "META": "NASDAQ", "IBM": "NYSE", "V": "NYSE", "JPM": "NYSE", "MA": "NYSE",
     "AAPL": "NASDAQ", "AMD": "NASDAQ", "NVDA": "NASDAQ", "AMZN": "NASDAQ", "KO": "NYSE",
     "NKE": "NYSE", "DIS": "NYSE", "MCD": "NYSE", "NFLX": "NASDAQ", "CAT": "NYSE",
@@ -476,7 +475,7 @@ import time
 
 tickers = [
     "AAPL", "AMD", "AMZN", "CAT", "CVX", "DIS", "GOOGL", "IBM", "JNJ", "JPM",
-    "KO", "MA", "MCD", "META", "MSFT", "^NDX", "NFLX", "NKE", "NVDA", "SPY",
+    "KO", "MA", "MCD", "META", "MSFT", "NFLX", "NKE", "NVDA", "SPY",
     "TSLA", "V", "XOM", "^DJI"
 ]
 
@@ -734,7 +733,7 @@ import os
 
 # ----------- Configuración de activos y temporalidades -----------
 assets = {
-    "NDX": "NASDAQ", "MSFT": "NASDAQ", "GOOGL": "NASDAQ",
+    "MSFT": "NASDAQ", "GOOGL": "NASDAQ",
     "META": "NASDAQ", "IBM": "NYSE", "V": "NYSE", "JPM": "NYSE", "MA": "NYSE",
     "AAPL": "NASDAQ", "AMD": "NASDAQ", "NVDA": "NASDAQ", "AMZN": "NASDAQ", "KO": "NYSE",
     "NKE": "NYSE", "DIS": "NYSE", "MCD": "NYSE", "NFLX": "NASDAQ", "CAT": "NYSE",
