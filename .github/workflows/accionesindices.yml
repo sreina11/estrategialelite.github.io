@@ -1,12 +1,9 @@
-
 name: acciones indices
 
 on:
-  workflow_dispatch:  # Permite ejecución manual en Actions
+  workflow_dispatch:
   schedule:
-    - cron: '0 */1200 * * *'  # Ejecuta cada 8 horas
-   
-
+    - cron: '0 0 */3 * *'
 
 jobs:
   update_post:
@@ -21,8 +18,7 @@ jobs:
           python-version: '3.12'
 
       - name: Instalar Dependencias
-        run: pip install tradingview_ta pandas requests yfinance beautifulsoup4 pip install lxml
-
+        run: pip install tradingview_ta pandas requests yfinance beautifulsoup4 lxml
 
       - name: Ejecutar Script
         env:
