@@ -67,7 +67,8 @@ for symbol in symbols:
 sheet.batch_clear(['A2:D'])
 sheet.update(range_name='A1:D1', values=[["Activo", "RSI 4H", "RSI Diario", "RSI Semanal"]])
 sheet.update(range_name='A2', values=filtered)
-sheet.update(range_name='E1', values=[[f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S")}"]])
+sheet.update(range_name='E1', values=[[f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"]])
+
 
 
 
