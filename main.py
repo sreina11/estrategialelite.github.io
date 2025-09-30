@@ -10,7 +10,7 @@ with open('creds.json', 'w') as f:
     f.write(creds_json)
 
 gc = gspread.service_account(filename='creds.json')
-sheet = gc.open("Nombre de tu hoja").worksheet("RSI")  # Cambia el nombre si es necesario
+sheet = gc.open("Copia de Telegram Elite").worksheet("RSI")  # Cambia el nombre si es necesario
 
 # Lista de activos
 symbols = [
