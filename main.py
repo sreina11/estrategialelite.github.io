@@ -70,3 +70,4 @@ sheet_ma.update('A1', [encabezado])
 sheet_ma.update('A2', raw_ma)
 sheet_ma.update('F1', [[f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"]])
 
+
