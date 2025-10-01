@@ -14,47 +14,23 @@ gc = gspread.service_account(filename='creds.json')
 sheet_ma = gc.open("Copia de Telegram Elite").worksheet("MA")
 
 symbols = [
-    "SPY", ".DJI", ".INX", "MSFT", "GOOGL", "META", "IBM", "V", "JPM", "MA", "AAPL", "AMD", "NVDA", "AMZN", "KO", "DIS",
-    "MCD", "NFLX", "CAT", "TSLA", "CVX", "XOM", "JNJ", "USDJPY", "USDCAD", "USDCHF", "USDAUD", "EURUSD", "EURJPY",
-    "EURGBP", "EURAUD", "GBPUSD", "GBPJPY", "AUDUSD", "AUDJPY", "CADJPY", "CHFJPY", "CADCHF", "XAUUSD", "BTCUSD",
-    "ETHUSD", "UKOIL", "XRPUSDT", "BNBUSDT", "SOLUSDT", "AVAXUSDT", "XLMUSDT", "LINKUSDT"
+    "SPY", "QQQ", "MSFT", "GOOGL", "META", "IBM", "V", "JPM", "MA", "AAPL", "AMD", "NVDA", "AMZN", "KO", "DIS",
+    "MCD", "NFLX", "CAT", "TSLA", "CVX", "XOM", "JNJ", "NKE"
 ]
 
 intervals = {
     "4H": Interval.INTERVAL_4_HOURS,
     "D": Interval.INTERVAL_1_DAY,
-    "W": Interval.INTERVAL_1_WEEK,
-    "M": Interval.INTERVAL_1_MONTH
+    "W": Interval.INTERVAL_1_WEEK
 }
 
 def obtener_exchange(symbol):
-    if symbol.endswith("USDT") or symbol in {"BTCUSD", "ETHUSD", "XRPUSDT", "BNBUSDT", "SOLUSDT", "AVAXUSDT", "XLMUSDT", "LINKUSDT"}:
-        return "BINANCE"
-    elif symbol in {"SPY", "AAPL", "MSFT", "GOOGL", "META", "NVDA", "AMD", "AMZN", "NFLX", "TSLA"}:
-        return "NASDAQ"
-    elif symbol in {"CVX", "XOM", "KO", "DIS", "MCD", "IBM", "V", "JPM", "MA", "CAT"}:
-        return "NYSE"
-    elif symbol in {"UKOIL"}:
-        return "TVC"
-    elif symbol in {"XAUUSD", "EURUSD", "USDJPY", "GBPUSD", "USDCAD", "USDCHF", "AUDUSD", "NZDUSD"}:
-        return "OANDA"
-    else:
-        return "BINANCE"
+    return "NASDAQ" if symbol in {"SPY", "QQQ", "AAPL", "MSFT", "GOOGL", "META", "NVDA", "AMD", "AMZN", "NFLX", "TSLA"} else "NYSE"
 
-def obtener_screener(symbol):
-    if symbol.endswith("USDT") or symbol in {"BTCUSD", "ETHUSD", "XRPUSDT", "BNBUSDT", "SOLUSDT", "AVAXUSDT", "XLMUSDT", "LINKUSDT"}:
-        return "crypto"
-    elif symbol in {"USDJPY", "USDCAD", "USDCHF", "USDAUD", "EURUSD", "EURJPY", "EURGBP", "EURAUD", "GBPUSD", "GBPJPY", "AUDUSD", "AUDJPY", "CADJPY", "CHFJPY", "CADCHF", "XAUUSD", "UKOIL"}:
-        return "forex"
-    else:
-        return "america"
-
-# Recolección cruda
 raw_ma = []
 
 for symbol in symbols:
     exchange = obtener_exchange(symbol)
-    screener = obtener_screener(symbol)
     row = [symbol]
 
     for label, interval in intervals.items():
@@ -62,27 +38,25 @@ for symbol in symbols:
             handler = TA_Handler(
                 symbol=symbol,
                 exchange=exchange,
-                screener=screener,
+                screener="america",
                 interval=interval
             )
             analysis = handler.get_analysis()
             precio = analysis.indicators.get("close")
-            ma20 = analysis.indicators.get("MA20")
-            ma50 = analysis.indicators.get("MA50")
-            ma200 = analysis.indicators.get("MA200")
+            ma50 = analysis.moving_averages.get("MA50")
+            ma200 = analysis.moving_averages.get("MA200")
 
-            print(f"{symbol} {label} → Precio: {precio}, MA20: {ma20}, MA50: {ma50}, MA200: {ma200}")
+            print(f"{symbol} {label} → Precio: {precio}, MA50: {ma50}, MA200: {ma200}")
 
             row.extend([
                 round(precio, 2) if precio else "N/A",
-                round(ma20, 2) if ma20 else "N/A",
-                round(ma50, 2) if ma50 else "N/A",
-                round(ma200, 2) if ma200 else "N/A"
+                round(ma50["value"], 2) if ma50 else "N/A",
+                round(ma200["value"], 2) if ma200 else "N/A"
             ])
 
         except Exception as e:
             print(f"Error en {symbol} ({label}): {e}")
-            row.extend(["N/A"] * 4)
+            row.extend(["N/A"] * 3)
 
     raw_ma.append(row)
     time.sleep(0.5)
@@ -91,7 +65,8 @@ for symbol in symbols:
 sheet_ma.batch_clear(['A2:Z'])
 encabezado = ["Activo"]
 for label in intervals.keys():
-    encabezado.extend([f"Precio {label}", f"MA20 {label}", f"MA50 {label}", f"MA200 {label}"])
+    encabezado.extend([f"Precio {label}", f"MA50 {label}", f"MA200 {label}"])
 sheet_ma.update('A1', [encabezado])
 sheet_ma.update('A2', raw_ma)
 sheet_ma.update('F1', [[f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"]])
+
