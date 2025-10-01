@@ -75,6 +75,7 @@ for symbol in symbols:
 
     raw_ma.append(row)
     time.sleep(0.5)
+print(f"{symbol} {label} → Precio: {precio}, MA20: {ma20}, MA50: {ma50}, MA200: {ma200}")
 
 # Escribir en hoja MA
 sheet_ma.batch_clear(['A2:Z'])
