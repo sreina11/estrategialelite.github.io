@@ -41,11 +41,20 @@ def obtener_exchange(symbol):
     else:
         return "BINANCE"
 
+def obtener_screener(symbol):
+    if symbol.endswith("USDT") or symbol in {"BTCUSD", "ETHUSD", "XRPUSDT", "BNBUSDT", "SOLUSDT", "AVAXUSDT", "XLMUSDT", "LINKUSDT"}:
+        return "crypto"
+    elif symbol in {"USDJPY", "USDCAD", "USDCHF", "USDAUD", "EURUSD", "EURJPY", "EURGBP", "EURAUD", "GBPUSD", "GBPJPY", "AUDUSD", "AUDJPY", "CADJPY", "CHFJPY", "CADCHF", "XAUUSD", "UKOIL"}:
+        return "forex"
+    else:
+        return "america"
+
 # Recolección cruda
 raw_ma = []
 
 for symbol in symbols:
     exchange = obtener_exchange(symbol)
+    screener = obtener_screener(symbol)
     row = [symbol]
 
     for label, interval in intervals.items():
@@ -53,7 +62,7 @@ for symbol in symbols:
             handler = TA_Handler(
                 symbol=symbol,
                 exchange=exchange,
-                screener="crypto" if "USDT" in symbol or "USD" in symbol else "america",
+                screener=screener,
                 interval=interval
             )
             analysis = handler.get_analysis()
@@ -61,6 +70,8 @@ for symbol in symbols:
             ma20 = analysis.indicators.get("MA20")
             ma50 = analysis.indicators.get("MA50")
             ma200 = analysis.indicators.get("MA200")
+
+            print(f"{symbol} {label} → Precio: {precio}, MA20: {ma20}, MA50: {ma50}, MA200: {ma200}")
 
             row.extend([
                 round(precio, 2) if precio else "N/A",
@@ -75,7 +86,6 @@ for symbol in symbols:
 
     raw_ma.append(row)
     time.sleep(0.5)
-print(f"{symbol} {label} → Precio: {precio}, MA20: {ma20}, MA50: {ma50}, MA200: {ma200}")
 
 # Escribir en hoja MA
 sheet_ma.batch_clear(['A2:Z'])
@@ -85,4 +95,5 @@ for label in intervals.keys():
 sheet_ma.update('A1', [encabezado])
 sheet_ma.update('A2', raw_ma)
 sheet_ma.update('F1', [[f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"]])
+
 
