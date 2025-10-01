@@ -4,7 +4,7 @@ import json
 import os
 import time
 
-# Reconstruir archivo JSON desde secreto
+# Reconstruir credenciales
 creds_json = os.environ['GOOGLE_SHEETS_CREDENTIALS']
 with open('creds.json', 'w') as f:
     f.write(creds_json)
@@ -12,6 +12,7 @@ with open('creds.json', 'w') as f:
 gc = gspread.service_account(filename='creds.json')
 sheet = gc.open("Copia de Telegram Elite").worksheet("MA")
 
+# Lista completa de activos
 symbols = [
     # Índices
     "SPX500", "DJI", "NAS100",
@@ -32,12 +33,12 @@ def obtener_exchange(symbol):
         return "BINANCE"
     elif symbol in {"SPY", "AAPL", "MSFT", "GOOGL", "META", "NVDA", "AMD", "AMZN", "NFLX", "TSLA"}:
         return "NASDAQ"
-    elif symbol in {"CVX", "XOM", "KO", "DIS", "MCD", "IBM", "V", "JPM", "MA", "CAT"}:
+    elif symbol in {"CVX", "XOM", "KO", "DIS", "MCD", "IBM", "V", "JPM", "MA", "CAT", "JNJ"}:
         return "NYSE"
     elif symbol in {"UKOIL", "SPX500", "DJI", "NAS100"}:
         return "TVC"
     elif symbol in {"XAUUSD", "EURUSD", "USDJPY", "GBPUSD", "USDCAD", "USDCHF", "AUDUSD", "NZDUSD",
-                    "EURJPY", "EURGBP", "EURAUD", "GBPJPY", "AUDJPY", "CADJPY", "CHFJPY", "CADCHF"}:
+                    "EURJPY", "EURGBP", "EURAUD", "GBPJPY", "AUDJPY", "CADJPY", "CHFJPY", "CADCHF", "USDAUD"}:
         return "OANDA"
     else:
         return "BINANCE"
@@ -54,7 +55,7 @@ def obtener_screener(symbol):
         return "america"
 
 # Encabezado
-sheet.update('A1:B1', [["Activo", "Precio actual"]])
+sheet.update('A1:C1', [["Activo", "Precio actual", "Estado"]])
 
 # Recolección
 rows = []
@@ -70,13 +71,18 @@ for symbol in symbols:
         )
         analysis = handler.get_analysis()
         precio = analysis.indicators.get("close")
-        precio_final = round(precio, 2) if precio else "N/A"
-        rows.append([symbol, precio_final])
+        if precio is not None:
+            precio_final = round(precio, 2)
+            estado = "OK"
+        else:
+            precio_final = "N/A"
+            estado = "Error: precio vacío"
     except Exception as e:
-        print(f"Error en {symbol}: {e}")
-        rows.append([symbol, "N/A"])
+        precio_final = "N/A"
+        estado = f"Error: {str(e).splitlines()[0]}"
+    rows.append([symbol, precio_final, estado])
     time.sleep(0.5)
 
-# Escribir desde A2
+# Escribir en hoja
 sheet.update('A2', rows)
 
