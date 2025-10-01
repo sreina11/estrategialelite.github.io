@@ -199,4 +199,5 @@ for symbol in symbols:
 # Escribir RSI
 sheet_rsi.batch_clear(['A2:D'])
 sheet_rsi.update('A1:D1', [["Activo", "RSI 4H", "RSI Diario", "RSI Semanal"]])
-sheet_rsi.update('A2', filtered
+sheet_rsi.update('A2', filtered_rsi)
+sheet_rsi.update('F1', [[
