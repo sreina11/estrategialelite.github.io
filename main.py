@@ -200,4 +200,29 @@ for symbol in symbols:
 sheet_rsi.batch_clear(['A2:D'])
 sheet_rsi.update('A1:D1', [["Activo", "RSI 4H", "RSI Diario", "RSI Semanal"]])
 sheet_rsi.update('A2', filtered_rsi)
-sheet_rsi.update('F1', [[
+sheet_rsi.update('F1', [[f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"]])
+
+# Escribir Estocástico
+sheet_stoch.batch_clear(['A2:D'])
+sheet_stoch.update('A1:D1', [["Activo", "Stoch 4H", "Stoch Diario", "Stoch Semanal"]])
+sheet_stoch.update('A2', filtered_stoch)
+sheet_stoch.update('F1', [[f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"]])
+
+# Escribir MA
+sheet_ma.batch_clear(['A2:Z'])
+encabezado_ma = ["Activo"]
+for label in intervals.keys():
+    encabezado_ma.extend([f"MA20 {label}", f"MA50 {label}", f"MA200 {label}"])
+sheet_ma.update('A1', [encabezado_ma])
+sheet_ma.update('A2', filtered_ma)
+sheet_ma.update('F1', [[f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"]])
+
+# Escribir BB
+sheet_bb.batch_clear(['A2:Z'])
+encabezado_bb = ["Activo"]
+for label in intervals.keys():
+    encabezado_bb.extend([f"BB Sup {label}", f"BB Inf {label}"])
+sheet_bb.update('A1', [encabezado_bb])
+sheet_bb.update('A2', filtered_bb)
+sheet_bb.update('F1', [[f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"]])
+
