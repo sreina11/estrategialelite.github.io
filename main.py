@@ -117,6 +117,3 @@ for label in intervals.keys():
 sheet_ma.update('A1', [encabezado])
 sheet_ma.update('A2', filtered_ma)
 sheet_ma.update('F1', [[f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"]])
-
-
-
