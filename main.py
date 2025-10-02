@@ -13,7 +13,7 @@ gc = gspread.service_account(filename='creds.json')
 sheet_rsi = gc.open("Copia de Telegram Elite").worksheet("RSI")
 sheet_stoch = gc.open("Copia de Telegram Elite").worksheet("ST")
 
-# Solo Forex y Commodities
+# Activos: Forex y Commodities
 symbols = [
     "USDJPY", "USDCAD", "USDCHF", "USDAUD", "EURUSD", "EURJPY", "EURGBP", "EURAUD",
     "GBPUSD", "GBPJPY", "AUDUSD", "AUDJPY", "CADJPY", "CHFJPY", "CADCHF",
@@ -29,82 +29,76 @@ intervals = {
 filtered_rsi = []
 
 for symbol in symbols:
-    try:
-        row = [symbol]
-        match = False
+    row = [symbol]
+    match = False
 
-        for label, interval in intervals.items():
-            try:
-                handler = TA_Handler(
-                    symbol=symbol,
-                    exchange="OANDA",
-                    screener="forex",
-                    interval=interval
-                )
-                analysis = handler.get_analysis()
-                rsi = analysis.indicators.get("RSI")
+    for label, interval in intervals.items():
+        try:
+            handler = TA_Handler(
+                symbol=symbol,
+                exchange="OANDA",
+                screener="forex",
+                interval=interval
+            )
+            analysis = handler.get_analysis()
+            rsi = analysis.indicators.get("RSI")
 
-                if rsi is not None:
-                    row.append(round(rsi, 2))
-                    if rsi <= 30 or rsi >= 70:
-                        match = True
-                else:
-                    row.append("N/A")
-
-            except Exception as e:
-                print(f"RSI error en {symbol} ({label}): {e}")
+            if rsi is not None:
+                row.append(round(rsi, 2))
+                if rsi <= 30 or rsi >= 70:
+                    match = True
+            else:
                 row.append("N/A")
 
-        if match:
-            filtered_rsi.append(row)
+        except Exception as e:
+            print(f"RSI error en {symbol} ({label}): {e}")
+            row.append("N/A")
 
-    except Exception as e:
-        print(f"RSI error general con {symbol}: {e}")
+    if match:
+        filtered_rsi.append(row)
 
 # Estocástico
 filtered_stoch = []
 
 for symbol in symbols:
-    try:
-        row = [symbol]
-        match = False
+    row = [symbol]
+    match = False
 
-        for label, interval in intervals.items():
-            try:
-                handler = TA_Handler(
-                    symbol=symbol,
-                    exchange="OANDA",
-                    screener="forex",
-                    interval=interval
-                )
-                analysis = handler.get_analysis()
-                stoch = analysis.indicators.get("Stoch.K")
+    for label, interval in intervals.items():
+        try:
+            handler = TA_Handler(
+                symbol=symbol,
+                exchange="OANDA",
+                screener="forex",
+                interval=interval
+            )
+            analysis = handler.get_analysis()
+            stoch = analysis.indicators.get("Stoch.K")
 
-                if stoch is not None:
-                    row.append(round(stoch, 2))
-                    if stoch <= 20 or stoch >= 80:
-                        match = True
-                else:
-                    row.append("N/A")
-
-            except Exception as e:
-                print(f"Stoch error en {symbol} ({label}): {e}")
+            if stoch is not None:
+                row.append(round(stoch, 2))
+                if stoch <= 20 or stoch >= 80:
+                    match = True
+            else:
                 row.append("N/A")
 
-        if match:
-            filtered_stoch.append(row)
+        except Exception as e:
+            print(f"Stoch error en {symbol} ({label}): {e}")
+            row.append("N/A")
 
-    except Exception as e:
-        print(f"Stoch error general con {symbol}: {e}")
+    if match:
+        filtered_stoch.append(row)
 
 # Escribir RSI
 sheet_rsi.batch_clear(['A2:C'])
 sheet_rsi.update('A1:C1', [["Activo", "RSI 1H", "RSI 4H"]])
-sheet_rsi.update('A2', filtered_rsi)
+if filtered_rsi:
+    sheet_rsi.update(f'A2:C{len(filtered_rsi)+1}', filtered_rsi)
 sheet_rsi.update('E1', [[f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"]])
 
 # Escribir Estocástico
 sheet_stoch.batch_clear(['A2:C'])
 sheet_stoch.update('A1:C1', [["Activo", "Stoch 1H", "Stoch 4H"]])
-sheet_stoch.update('A2', filtered_stoch)
+if filtered_stoch:
+    sheet_stoch.update(f'A2:C{len(filtered_stoch)+1}', filtered_stoch)
 sheet_stoch.update('E1', [[f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"]])
