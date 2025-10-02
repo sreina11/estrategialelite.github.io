@@ -10,14 +10,13 @@ with open('creds.json', 'w') as f:
     f.write(creds_json)
 
 gc = gspread.service_account(filename='creds.json')
-sheet_rsi = gc.open("Copia de Telegram Elite").worksheet("RSI")
-sheet_stoch = gc.open("Copia de Telegram Elite").worksheet("ST")
+sheet_rsi = gc.open("Copia de Telegram Elite").worksheet("RSI BIN")
+sheet_stoch = gc.open("Copia de Telegram Elite").worksheet("STOC BIN")
 
-# Activos: Forex y Commodities
+# Activos Binance (sin barra)
 symbols = [
-    "USDJPY", "USDCAD", "USDCHF", "USDAUD", "EURUSD", "EURJPY", "EURGBP", "EURAUD",
-    "GBPUSD", "GBPJPY", "AUDUSD", "AUDJPY", "CADJPY", "CHFJPY", "CADCHF",
-    "XAUUSD", "UKOIL", "USOIL", "XAGUSD"
+    "BNBUSDT", "BTCUSDT", "ETHUSDT", "SOLUSDT", "DOGEUSDT", "XRPUSDT", "2ZUSDT",
+    "PEPEUSDT", "ADAUSDT", "SUIUSDT", "BARDUSDT", "XPLUSDT", "ZECUSDT"
 ]
 
 intervals = {
@@ -36,8 +35,8 @@ for symbol in symbols:
         try:
             handler = TA_Handler(
                 symbol=symbol,
-                exchange="OANDA",
-                screener="forex",
+                exchange="BINANCE",
+                screener="crypto",
                 interval=interval
             )
             analysis = handler.get_analysis()
@@ -68,8 +67,8 @@ for symbol in symbols:
         try:
             handler = TA_Handler(
                 symbol=symbol,
-                exchange="OANDA",
-                screener="forex",
+                exchange="BINANCE",
+                screener="crypto",
                 interval=interval
             )
             analysis = handler.get_analysis()
@@ -108,5 +107,3 @@ if filtered_stoch:
         "textFormat": {"foregroundColor": {"red": 0, "green": 0, "blue": 0}}
     })
 sheet_stoch.update_cell(1, 5, f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-
-
