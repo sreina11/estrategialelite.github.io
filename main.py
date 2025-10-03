@@ -110,3 +110,4 @@ if filtered_stoch:
         "textFormat": {"foregroundColor": {"red": 0, "green": 0, "blue": 0}}
     })
 sheet_stoch.update_cell(1, 5, f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
