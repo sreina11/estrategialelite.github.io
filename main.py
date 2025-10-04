@@ -13,13 +13,10 @@ gc = gspread.service_account(filename='creds.json')
 sheet_rsi = gc.open("Copia de Telegram Elite").worksheet("RSI BIN")
 sheet_stoch = gc.open("Copia de Telegram Elite").worksheet("STOC BIN")
 
-# Activos Binance (limpios y únicos)
+# Activos Binance (Top Volume + Hot Coins, sin duplicados)
 symbols = [
-    "BNBUSDT", "BTCUSDT", "ETHUSDT", "SOLUSDT", "DOGEUSDT", "CAKEUSDT", "PEPEUSDT", "XRPUSDT",
-    "LTCUSDT", "2ZUSDT", "HOOKUSDT", "BROCCOLI714USDT", "OPENUSDT", "GUNUSDT", "ETHFIUSDT",
-    "CELOUSDT", "0GUSDT", "OGNUSDT", "ZKCUSDT", "AWEUSDT", "REDUSDT", "NOMUSDT", "FFUSDT",
-    "SOMIUSDT", "ALPINEUSDT", "HEMIUSDT", "SUPERUSDT", "A2ZUSDT", "USDTUSDT", "USDCUSDT",
-    "FDUSDUSDT", "XPLUSDT"
+    "BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "BNBUSDT", "DOGEUSDT", "XPLUSDT", "ADAUSDT",
+    "SUIUSDT", "SOMIUSDT", "ZECUSDT", "PEPEUSDT", "ZENUSDT", "DASHUSDT"
 ]
 
 intervals = {
@@ -110,4 +107,5 @@ if filtered_stoch:
         "textFormat": {"foregroundColor": {"red": 0, "green": 0, "blue": 0}}
     })
 sheet_stoch.update_cell(1, 5, f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
 
