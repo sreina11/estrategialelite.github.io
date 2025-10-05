@@ -17,7 +17,7 @@ sheet_stoch = gc.open("Copia de Telegram Elite").worksheet("ST")
 symbols = [
     "USDJPY", "USDCAD", "USDCHF", "USDAUD", "EURUSD", "EURJPY", "EURGBP", "EURAUD",
     "GBPUSD", "GBPJPY", "AUDUSD", "AUDJPY", "CADJPY", "CHFJPY", "CADCHF",
-    "XAUUSD", "UKOIL", "USOIL", "XAGUSD"
+    "XAUUSD", "UKOIL", "USOIL"
 ]
 
 intervals = {
