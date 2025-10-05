@@ -15,8 +15,10 @@ sheet_stoch = gc.open("Copia de Telegram Elite").worksheet("STOC BIN")
 
 # Activos Binance (Top Volume + Hot Coins, sin duplicados)
 symbols = [
-    "BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "BNBUSDT", "DOGEUSDT", "XPLUSDT", "ADAUSDT",
-    "SUIUSDT", "SOMIUSDT", "ZECUSDT", "PEPEUSDT", "ZENUSDT", "DASHUSDT"
+    "BNBUSDT", "BTCUSDT", "ETHUSDT", "DOGEUSDT", "SOLUSDT", "XRPUSDT", "ADAUSDT", "PEPEUSDT",
+    "XPLUSDT", "LTCUSDT", "CELOUSDT", "TUTUSDT", "DUSKUSDT", "EDENUSDT", "KMNOUSDT", "SCRTUSDT",
+    "OPENUSDT", "DASHUSDT", "ZENUSDT", "ATMUSDT", "AVNTUSDT", "LINEAUSDT", "NOMUSDT", "SUPERUSDT",
+    "FORMUSDT", "C98USDT", "CYBERUSDT", "CUSDT", "FFUSDT", "BBUSDT", "SUIUSDT"
 ]
 
 intervals = {
