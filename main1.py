@@ -86,5 +86,3 @@ sheet_stoch.format(f'A2:C{len(filtered_stoch)+1}', {
     "textFormat": {"foregroundColor": {"red": 0, "green": 0, "blue": 0}}
 })
 sheet_stoch.update_cell(1, 5, f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-
-
