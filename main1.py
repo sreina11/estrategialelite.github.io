@@ -1,7 +1,6 @@
 import gspread
 from tradingview_ta import TA_Handler, Interval
 from datetime import datetime
-from pytz import timezone
 import json
 import os
 
@@ -77,8 +76,7 @@ sheet_rsi.update(f'A2:C{len(filtered_rsi)+1}', filtered_rsi)
 sheet_rsi.format(f'A2:C{len(filtered_rsi)+1}', {
     "textFormat": {"foregroundColor": {"red": 0, "green": 0, "blue": 0}}
 })
-now = datetime.now(timezone('Europe/Madrid'))
-sheet_rsi.update_cell(1, 5, f"Última actualización: {now.strftime('%Y-%m-%d %H:%M:%S')}")
+sheet_rsi.update_cell(1, 5, f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
 # Escribir Estocástico
 sheet_stoch.batch_clear(['A2:C'])
@@ -87,5 +85,6 @@ sheet_stoch.update(f'A2:C{len(filtered_stoch)+1}', filtered_stoch)
 sheet_stoch.format(f'A2:C{len(filtered_stoch)+1}', {
     "textFormat": {"foregroundColor": {"red": 0, "green": 0, "blue": 0}}
 })
-sheet_stoch.update_cell(1, 5, f"Última actualización: {now.strftime('%Y-%m-%d %H:%M:%S')}")
+sheet_stoch.update_cell(1, 5, f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
 
