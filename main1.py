@@ -15,11 +15,11 @@ gc = gspread.service_account(filename='creds.json')
 sheet_rsi = gc.open("Copia de Telegram Elite").worksheet("RSI")
 sheet_stoch = gc.open("Copia de Telegram Elite").worksheet("ST")
 
-# Activos: Forex y Commodities
+# Activos válidos en TradingView con OANDA
 symbols = [
-    "USDJPY", "USDCAD", "USDCHF", "USDAUD", "EURUSD", "EURJPY", "EURGBP", "EURAUD",
-    "GBPUSD", "GBPJPY", "AUDUSD", "AUDJPY", "CADJPY", "CHFJPY", "CADCHF",
-    "XAUUSD", "UKOIL", "USOIL", "XAGUSD"
+    "USDJPY", "USDCAD", "USDCHF", "AUDUSD", "EURUSD", "EURJPY", "EURGBP", "AUDJPY",
+    "GBPUSD", "GBPJPY", "CADJPY", "CHFJPY", "CADCHF",
+    "XAUUSD", "UKOIL", "USOIL"
 ]
 
 intervals = {
