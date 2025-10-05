@@ -89,5 +89,3 @@ sheet_stoch.format(f'A2:C{len(filtered_stoch)+1}', {
 })
 sheet_stoch.update_cell(1, 5, f"Última actualización: {now.strftime('%Y-%m-%d %H:%M:%S')}")
 
-
-
