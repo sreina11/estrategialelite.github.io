@@ -18,8 +18,7 @@ sheet_stoch = gc.open("Copia de Telegram Elite").worksheet("ST")
 # Activos válidos en TradingView con OANDA
 symbols = [
     "USDJPY", "USDCAD", "USDCHF", "AUDUSD", "EURUSD", "EURJPY", "EURGBP", "AUDJPY",
-    "GBPUSD", "GBPJPY", "CADJPY", "CHFJPY", "CADCHF",
-    "XAUUSD", "UKOIL", "USOIL"
+    "GBPUSD", "GBPJPY", "CADJPY", "CHFJPY", "CADCHF"
 ]
 
 intervals = {
