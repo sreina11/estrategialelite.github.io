@@ -11,8 +11,8 @@ if not os.path.exists('creds.json'):
         f.write(creds_json)
 
 gc = gspread.service_account(filename='creds.json')
-sheet_rsi = gc.open("Copia de Telegram Elite").worksheet("RSI")
-sheet_stoch = gc.open("Copia de Telegram Elite").worksheet("ST")
+sheet_rsi = gc.open("Copia de Telegram Elite").worksheet("RSI AC")
+sheet_stoch = gc.open("Copia de Telegram Elite").worksheet("ST AC")
 
 # Símbolos con su exchange correcto
 symbols_info = {
