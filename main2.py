@@ -12,8 +12,8 @@ if not os.path.exists('creds.json'):
 
 # Conexión con Google Sheets
 gc = gspread.service_account(filename='creds.json')
-sheet_rsi = gc.open("Copia de Telegram Elite").worksheet("RSI")
-sheet_stoch = gc.open("Copia de Telegram Elite").worksheet("ST")
+sheet_rsi = gc.open("Copia de Telegram Elite").worksheet("RSI AC")
+sheet_stoch = gc.open("Copia de Telegram Elite").worksheet("ST AC")
 
 # Activos: Acciones
 symbols = [
