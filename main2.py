@@ -10,16 +10,18 @@ if not os.path.exists('creds.json'):
     with open('creds.json', 'w') as f:
         f.write(creds_json)
 
-# Conexión con Google Sheets
 gc = gspread.service_account(filename='creds.json')
-sheet_rsi = gc.open("Copia de Telegram Elite").worksheet("RSI AC")
-sheet_stoch = gc.open("Copia de Telegram Elite").worksheet("ST AC")
+sheet_rsi = gc.open("Copia de Telegram Elite").worksheet("RSI")
+sheet_stoch = gc.open("Copia de Telegram Elite").worksheet("ST")
 
-# Activos: Acciones
-symbols = [
-    "GOOGL", "META", "IBM", "V", "JPM", "MA", "AAPL", "AMD", "NVDA", "AMZN",
-    "KO", "DIS", "MCD", "NFLX", "CAT", "TSLA", "XOM", "CVX", "JNJ"
-]
+# Símbolos con su exchange correcto
+symbols_info = {
+    "GOOGL": "NASDAQ", "META": "NASDAQ", "IBM": "NYSE", "V": "NYSE", "JPM": "NYSE",
+    "MA": "NYSE", "AAPL": "NASDAQ", "AMD": "NASDAQ", "NVDA": "NASDAQ", "AMZN": "NASDAQ",
+    "KO": "NYSE", "DIS": "NYSE", "MCD": "NYSE", "NFLX": "NASDAQ", "CAT": "NYSE",
+    "TSLA": "NASDAQ", "XOM": "NYSE", "CVX": "NYSE", "JNJ": "NYSE",
+    "SPY": "AMEX", "NDX": "NASDAQ", "US30": "FXCM"
+}
 
 intervals = {
     "1H": Interval.INTERVAL_1_HOUR,
@@ -29,14 +31,14 @@ intervals = {
 # RSI
 filtered_rsi = []
 
-for symbol in symbols:
+for symbol, exchange in symbols_info.items():
     row = [symbol]
     for label, interval in intervals.items():
         try:
             handler = TA_Handler(
                 symbol=symbol,
-                exchange="NASDAQ",
-                screener="america",
+                exchange=exchange,
+                screener="america" if exchange != "FXCM" else "forex",
                 interval=interval
             )
             analysis = handler.get_analysis()
@@ -50,14 +52,14 @@ for symbol in symbols:
 # Estocástico
 filtered_stoch = []
 
-for symbol in symbols:
+for symbol, exchange in symbols_info.items():
     row = [symbol]
     for label, interval in intervals.items():
         try:
             handler = TA_Handler(
                 symbol=symbol,
-                exchange="NASDAQ",
-                screener="america",
+                exchange=exchange,
+                screener="america" if exchange != "FXCM" else "forex",
                 interval=interval
             )
             analysis = handler.get_analysis()
@@ -85,5 +87,4 @@ sheet_stoch.format(f'A2:C{len(filtered_stoch)+1}', {
     "textFormat": {"foregroundColor": {"red": 0, "green": 0, "blue": 0}}
 })
 sheet_stoch.update_cell(1, 5, f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-
 
