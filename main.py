@@ -23,9 +23,10 @@ symbols = [
     "COAIUSDT", "BROCCOLIF3BUSDT", "KOMAUSDT", "USELESSUSDT", "BANKUSDT", "TAKEUSDT", "VVVUSDT"
 ]
 
+# Temporalidades corregidas
 intervals = {
-    "5m": Interval.INTERVAL_5_minutes,
-    "15m": Interval.INTERVAL_15_minutes
+    "5m": Interval.INTERVAL_5_MINUTES,
+    "15m": Interval.INTERVAL_15_MINUTES
 }
 
 # RSI filtrado
@@ -122,7 +123,7 @@ sheet_stoch.update_cell(1, 5, f"Última actualización: {datetime.now().strftime
 
 # Detectar confluencias
 sheet_confluencias.batch_clear(['A2:E'])
-sheet_confluencias.update('A1:E1', [["Activo", "RSI 1H", "RSI 4H", "Stoch 1H", "Stoch 4H"]])
+sheet_confluencias.update('A1:E1', [["Activo", "RSI 5M", "RSI 15M", "Stoch 5M", "Stoch 15M"]])
 
 resultados = []
 
@@ -142,5 +143,6 @@ for symbol in symbols:
 if resultados:
     sheet_confluencias.update(f'A2:E{len(resultados)+1}', [row[:5] for row in resultados])
     sheet_confluencias.update_cell(1, 7, f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
 
 
