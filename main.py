@@ -108,14 +108,14 @@ for symbol in symbols:
 
 # Escribir RSI
 sheet_rsi.batch_clear(['A2:C'])
-sheet_rsi.update('A1:C1', [["Activo", "RSI 1H", "RSI 4H"]])
+sheet_rsi.update('A1:C1', [["Activo", "RSI 5M", "RSI 15M"]])
 if filtered_rsi:
     sheet_rsi.update(f'A2:C{len(filtered_rsi)+1}', filtered_rsi)
 sheet_rsi.update_cell(1, 5, f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
 # Escribir Stoch
 sheet_stoch.batch_clear(['A2:C'])
-sheet_stoch.update('A1:C1', [["Activo", "Stoch 1H", "Stoch 4H"]])
+sheet_stoch.update('A1:C1', [["Activo", "Stoch 5M", "Stoch 15M"]])
 if filtered_stoch:
     sheet_stoch.update(f'A2:C{len(filtered_stoch)+1}', filtered_stoch)
 sheet_stoch.update_cell(1, 5, f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
