@@ -16,8 +16,9 @@ sheet_confluencias = gc.open("Copia de Telegram Elite").worksheet("confluencias 
 
 # Lista consolidada de criptos relevantes
 symbols = [
-    "BROCCOLI714USDT", "EDENUSDT", "WANUSDT", "LISTAUSDT", "KERNELUSDT", "FORMUSDT",
-    "DEXEUSDT", "MUBARAKUSDT", "XPLUSDT", "CAKEUSDT", "ASTERUSDT"
+    "AIAUSDT", "4USDT", "GIGGLEUSDT", "币安人生USDT", "BLESSUSDT", "STBLUSDT", "DORAUSDT",
+    "LISTAUSDT", "XANUSDT", "FORMUSDT", "DEXEUSDT", "NMDUSDT", "CAKEUSDT", "ASTERUSDT",
+    "WKCUSDT", "MYXUSDT", "XVSUSDT", "SIRENUSDT", "MOGUSDT", "TWTUSDT", "PTBUSDT"
 ]
 
 
