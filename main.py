@@ -16,11 +16,10 @@ sheet_confluencias = gc.open("Copia de Telegram Elite").worksheet("confluencias 
 
 # Lista consolidada de criptos relevantes
 symbols = [
-    "WANUSDT", "BROCCOLI714USDT", "EDENUSDT", "TSTUSDT", "HEMIUSDT", "ASTERUSDT", "XPLUSDT",
-    "MUBARAKUSDT", "EPICUSDT", "SCRTUSDT", "BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT",
-    "XRPUSDT", "DOGEUSDT", "2ZUSDT", "ADAUSDT"
+    "BROCCOLI714USDT", "WANUSDT", "TSTUSDT", "ASTERUSDT", "EDENUSDT", "HEMIUSDT", "PUMPUSDT",
+    "FORMUSDT", "XPLUSDT", "MUBARAKUSDT", "BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT",
+    "XRPUSDT", "DOGEUSDT", "2ZUSDT", "MIRAUSDT", "ADAUSDT"
 ]
-
 
 # Temporalidades corregidas
 intervals = {
@@ -28,15 +27,10 @@ intervals = {
     "15m": Interval.INTERVAL_15_MINUTES
 }
 
-# RSI filtrado
-filtered_rsi = []
-rsi_map = {}
-
+# RSI sin filtro
+rsi_map = []
 for symbol in symbols:
     row = [symbol]
-    match = False
-    values = []
-
     for label, interval in intervals.items():
         try:
             handler = TA_Handler(
@@ -47,35 +41,16 @@ for symbol in symbols:
             )
             analysis = handler.get_analysis()
             rsi = analysis.indicators.get("RSI")
-
-            if rsi is not None:
-                rsi_val = round(rsi, 2)
-                values.append(rsi_val)
-                row.append(rsi_val)
-                if rsi_val <= 30 or rsi_val >= 70:
-                    match = True
-            else:
-                values.append("N/A")
-                row.append("N/A")
-
+            row.append(round(rsi, 2) if rsi is not None else "N/A")
         except Exception as e:
             print(f"RSI error en {symbol} ({label}): {e}")
-            values.append("N/A")
             row.append("N/A")
+    rsi_map.append(row)
 
-    if match:
-        filtered_rsi.append(row)
-    rsi_map[symbol] = values
-
-# Stoch filtrado
-filtered_stoch = []
-stoch_map = {}
-
+# Stoch sin filtro
+stoch_map = []
 for symbol in symbols:
     row = [symbol]
-    match = False
-    values = []
-
     for label, interval in intervals.items():
         try:
             handler = TA_Handler(
@@ -86,62 +61,37 @@ for symbol in symbols:
             )
             analysis = handler.get_analysis()
             stoch = analysis.indicators.get("Stoch.K")
-
-            if stoch is not None:
-                stoch_val = round(stoch, 2)
-                values.append(stoch_val)
-                row.append(stoch_val)
-                if stoch_val <= 20 or stoch_val >= 80:
-                    match = True
-            else:
-                values.append("N/A")
-                row.append("N/A")
-
+            row.append(round(stoch, 2) if stoch is not None else "N/A")
         except Exception as e:
             print(f"Stoch error en {symbol} ({label}): {e}")
-            values.append("N/A")
             row.append("N/A")
-
-    if match:
-        filtered_stoch.append(row)
-    stoch_map[symbol] = values
+    stoch_map.append(row)
 
 # Escribir RSI
 sheet_rsi.batch_clear(['A2:C'])
 sheet_rsi.update('A1:C1', [["Activo", "RSI 5M", "RSI 15M"]])
-if filtered_rsi:
-    sheet_rsi.update(f'A2:C{len(filtered_rsi)+1}', filtered_rsi)
+sheet_rsi.update(f'A2:C{len(rsi_map)+1}', rsi_map)
 sheet_rsi.update_cell(1, 5, f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
 # Escribir Stoch
 sheet_stoch.batch_clear(['A2:C'])
 sheet_stoch.update('A1:C1', [["Activo", "Stoch 5M", "Stoch 15M"]])
-if filtered_stoch:
-    sheet_stoch.update(f'A2:C{len(filtered_stoch)+1}', filtered_stoch)
+sheet_stoch.update(f'A2:C{len(stoch_map)+1}', stoch_map)
 sheet_stoch.update_cell(1, 5, f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
-# Detectar confluencias
+# Confluencias: mostrar todos los valores sin filtrar
 sheet_confluencias.batch_clear(['A2:E'])
 sheet_confluencias.update('A1:E1', [["Activo", "RSI 5M", "RSI 15M", "Stoch 5M", "Stoch 15M"]])
 
 resultados = []
+for i, symbol in enumerate(symbols):
+    rsi_vals = rsi_map[i][1:]
+    stoch_vals = stoch_map[i][1:]
+    resultados.append([symbol] + rsi_vals + stoch_vals)
 
-for symbol in symbols:
-    if symbol not in rsi_map or symbol not in stoch_map:
-        continue
+sheet_confluencias.update(f'A2:E{len(resultados)+1}', resultados)
+sheet_confluencias.update_cell(1, 7, f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
-    rsi_vals = rsi_map[symbol]
-    stoch_vals = stoch_map[symbol]
-
-    rsi_extrema = any(val != "N/A" and (val <= 30 or val >= 70) for val in rsi_vals)
-    stoch_extrema = any(val != "N/A" and (val <= 20 or val >= 80) for val in stoch_vals)
-
-    if rsi_extrema and stoch_extrema:
-        resultados.append([symbol] + rsi_vals + stoch_vals)
-
-if resultados:
-    sheet_confluencias.update(f'A2:E{len(resultados)+1}', [row[:5] for row in resultados])
-    sheet_confluencias.update_cell(1, 7, f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
 
 
