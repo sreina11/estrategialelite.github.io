@@ -1,8 +1,8 @@
+import requests
 import gspread
-from tradingview_ta import TA_Handler, Interval
-from datetime import datetime
-import json
 import os
+import time
+from datetime import datetime
 
 # Reconstruir archivo JSON desde secreto
 creds_json = os.environ['GOOGLE_SHEETS_CREDENTIALS']
@@ -10,87 +10,44 @@ with open('creds.json', 'w') as f:
     f.write(creds_json)
 
 gc = gspread.service_account(filename='creds.json')
-sheet_rsi = gc.open("Copia de Telegram Elite").worksheet("RSI BIN")
-sheet_stoch = gc.open("Copia de Telegram Elite").worksheet("STOC BIN")
-sheet_confluencias = gc.open("Copia de Telegram Elite").worksheet("confluencias bin")
+sheet_top_volume = gc.open("Copia de Telegram Elite").worksheet("top volume")
 
-# Lista consolidada de criptos relevantes
-symbols = [
-     "EDENUSDT", "BROCCOLI714USDT", "WANUSDT", "OPENUSDT", "HEMIUSDT", "LISTAUSDT",
-    "TSTUSDT", "MUBARAKUSDT", "FORMUSDT", "XPLUSDT"
-]
+def get_top_futures_volume_15m(limit=20, sleep_time=0.1):
+    """
+    Consulta los contratos de futuros USDT en Binance con mayor volumen en los últimos 15 minutos.
+    """
+    try:
+        info = requests.get("https://fapi.binance.com/fapi/v1/exchangeInfo", timeout=10).json()
+        symbols = [s["symbol"] for s in info["symbols"] if s["contractType"] == "PERPETUAL" and s["quoteAsset"] == "USDT"]
+    except Exception as e:
+        print(f"Error al obtener símbolos de futuros: {e}")
+        return []
 
-# Temporalidades corregidas
-intervals = {
-    "5m": Interval.INTERVAL_5_MINUTES,
-    "15m": Interval.INTERVAL_15_MINUTES
-}
-
-# RSI sin filtro
-rsi_map = []
-for symbol in symbols:
-    row = [symbol]
-    for label, interval in intervals.items():
+    volumes = []
+    for symbol in symbols:
         try:
-            handler = TA_Handler(
-                symbol=symbol,
-                exchange="BINANCE",
-                screener="crypto",
-                interval=interval
-            )
-            analysis = handler.get_analysis()
-            rsi = analysis.indicators.get("RSI")
-            row.append(round(rsi, 2) if rsi is not None else "N/A")
+            url = f"https://fapi.binance.com/fapi/v1/klines?symbol={symbol}&interval=15m&limit=1"
+            response = requests.get(url, timeout=5)
+            data = response.json()
+            volume = float(data[0][5])
+            volumes.append((symbol, volume))
+            time.sleep(sleep_time)
         except Exception as e:
-            print(f"RSI error en {symbol} ({label}): {e}")
-            row.append("N/A")
-    rsi_map.append(row)
+            print(f"Error con {symbol}: {e}")
+            continue
 
-# Stoch sin filtro
-stoch_map = []
-for symbol in symbols:
-    row = [symbol]
-    for label, interval in intervals.items():
-        try:
-            handler = TA_Handler(
-                symbol=symbol,
-                exchange="BINANCE",
-                screener="crypto",
-                interval=interval
-            )
-            analysis = handler.get_analysis()
-            stoch = analysis.indicators.get("Stoch.K")
-            row.append(round(stoch, 2) if stoch is not None else "N/A")
-        except Exception as e:
-            print(f"Stoch error en {symbol} ({label}): {e}")
-            row.append("N/A")
-    stoch_map.append(row)
+    top = sorted(volumes, key=lambda x: x[1], reverse=True)[:limit]
+    return top
 
-# Escribir RSI
-sheet_rsi.batch_clear(['A2:C'])
-sheet_rsi.update('A1:C1', [["Activo", "RSI 5M", "RSI 15M"]])
-sheet_rsi.update(f'A2:C{len(rsi_map)+1}', rsi_map)
-sheet_rsi.update_cell(1, 5, f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+# Obtener top volumen y preparar datos para Sheets
+top_volume = get_top_futures_volume_15m(limit=20)
+rows = [["Activo", "Volumen 15m"]] + [[symbol, round(volume, 2)] for symbol, volume in top_volume]
 
-# Escribir Stoch
-sheet_stoch.batch_clear(['A2:C'])
-sheet_stoch.update('A1:C1', [["Activo", "Stoch 5M", "Stoch 15M"]])
-sheet_stoch.update(f'A2:C{len(stoch_map)+1}', stoch_map)
-sheet_stoch.update_cell(1, 5, f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-
-# Confluencias: mostrar todos los valores sin filtrar
-sheet_confluencias.batch_clear(['A2:E'])
-sheet_confluencias.update('A1:E1', [["Activo", "RSI 5M", "RSI 15M", "Stoch 5M", "Stoch 15M"]])
-
-resultados = []
-for i, symbol in enumerate(symbols):
-    rsi_vals = rsi_map[i][1:]
-    stoch_vals = stoch_map[i][1:]
-    resultados.append([symbol] + rsi_vals + stoch_vals)
-
-sheet_confluencias.update(f'A2:E{len(resultados)+1}', resultados)
-sheet_confluencias.update_cell(1, 7, f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-
+# Escribir en hoja "top volume"
+sheet_top_volume.batch_clear(['A2:B'])
+sheet_top_volume.update('A1:B1', [["Activo", "Volumen 15m"]])
+sheet_top_volume.update(f'A2:B{len(rows)}', rows[1:])
+sheet_top_volume.update_cell(1, 4, f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
 
 
