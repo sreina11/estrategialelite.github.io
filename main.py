@@ -12,48 +12,47 @@ with open('creds.json', 'w') as f:
 gc = gspread.service_account(filename='creds.json')
 sheet_top_volume = gc.open("Copia de Telegram Elite").worksheet("top volume")
 
-# Obtener lista de símbolos válidos en Binance Futures
+# Obtener símbolos PERPETUAL USDT-margined
 def get_futures_symbols():
+    url = "https://fapi.binance.com/fapi/v1/exchangeInfo"
     try:
-        info = requests.get("https://fapi.binance.com/fapi/v1/exchangeInfo", timeout=10).json()
+        info = requests.get(url, timeout=10).json()
         return [s["symbol"] for s in info["symbols"] if s["contractType"] == "PERPETUAL" and s["quoteAsset"] == "USDT"]
     except Exception as e:
-        print(f"Error al obtener exchangeInfo: {e}")
+        print(f"Error al obtener símbolos: {e}")
         return []
 
-# Calcular incremento de volumen entre dos velas de 15m
-def get_volume_increase(symbols, sleep_time=0.1):
-    results = []
+# Obtener volumen actual de 15m
+def get_volume_15m(symbols, sleep_time=0.1):
+    volumes = []
     for symbol in symbols:
         try:
-            url = f"https://fapi.binance.com/fapi/v1/klines?symbol={symbol}&interval=15m&limit=2"
+            url = f"https://fapi.binance.com/fapi/v1/klines?symbol={symbol}&interval=15m&limit=1"
             response = requests.get(url, timeout=5)
             data = response.json()
-            if isinstance(data, list) and len(data) == 2:
-                vol_prev = float(data[0][5])
-                vol_now = float(data[1][5])
-                if vol_prev > 0:
-                    change = ((vol_now - vol_prev) / vol_prev) * 100
-                    results.append((symbol, round(change, 2), round(vol_now, 2)))
+            if isinstance(data, list) and len(data) > 0:
+                volume = float(data[0][5])
+                volumes.append((symbol, volume))
+            else:
+                print(f"{symbol}: respuesta vacía")
             time.sleep(sleep_time)
         except Exception as e:
             print(f"Error con {symbol}: {e}")
-            continue
-    return sorted(results, key=lambda x: x[1], reverse=True)
+    return sorted(volumes, key=lambda x: x[1], reverse=True)
 
 # Ejecutar flujo
 symbols = get_futures_symbols()
-top_changes = get_volume_increase(symbols)
+top_volume = get_volume_15m(symbols)
 
 # Escribir en Sheets
-if top_changes:
-    rows = [["Activo", "Cambio volumen %", "Volumen actual"]] + [[s, c, v] for s, c, v in top_changes[:20]]
-    sheet_top_volume.batch_clear(['A2:C'])
-    sheet_top_volume.update('A1:C1', rows[0])
-    sheet_top_volume.update(f'A2:C{len(rows)}', rows[1:])
+if top_volume:
+    rows = [["Activo", "Volumen 15m"]] + [[s, round(v, 2)] for s, v in top_volume[:20]]
+    sheet_top_volume.batch_clear(['A2:B'])
+    sheet_top_volume.update('A1:B1', rows[0])
+    sheet_top_volume.update(f'A2:B{len(rows)}', rows[1:])
     sheet_top_volume.update_cell(1, 4, f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print("✅ Hoja actualizada con incrementos de volumen.")
+    print("✅ Hoja actualizada correctamente.")
 else:
-    print("⚠️ No se detectaron incrementos de volumen.")
+    print("⚠️ No se obtuvo volumen para ningún activo.")
 
 
