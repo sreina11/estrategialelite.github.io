@@ -13,12 +13,13 @@ gc = gspread.service_account(filename='creds.json')
 sheet_rsi = gc.open("Copia de Telegram Elite").worksheet("RSI")
 sheet_stoch = gc.open("Copia de Telegram Elite").worksheet("ST")
 
-# Activos: Forex y Commodities
+# ✅ Pares de divisas extraídos de la imagen
 symbols = [
-    "USDJPY", "USDCAD", "USDCHF", "USDAUD", "EURUSD", "EURJPY", "EURGBP", "EURAUD",
-    "GBPUSD", "GBPJPY", "AUDUSD", "AUDJPY", "CADJPY", "CHFJPY", "CADCHF",
+    "GBPUSD", "EURUSD", "EURGBP", "AUDUSD", "EURJPY",
+    "USDCAD", "USDCHF", "USDJPY", "CADJPY"
 ]
 
+# Temporalidades
 intervals = {
     "1H": Interval.INTERVAL_1_HOUR,
     "4H": Interval.INTERVAL_4_HOURS
@@ -107,3 +108,4 @@ if filtered_stoch:
         "textFormat": {"foregroundColor": {"red": 0, "green": 0, "blue": 0}}
     })
 sheet_stoch.update_cell(1, 5, f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
