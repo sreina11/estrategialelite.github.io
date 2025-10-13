@@ -93,4 +93,3 @@ sheet_confluencias.update(f'A2:E{len(resultados)+1}', resultados)
 sheet_confluencias.update_cell(1, 7, f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
 
-
