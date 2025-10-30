@@ -137,5 +137,3 @@ sheet_economicos.clear()
 sheet_economicos.update("A1:E1", [["Indicador", "Fecha", "Actual", "Esperado", "Anterior"]])
 sheet_economicos.update(f"A2:E{len(datos_economicos)+1}", datos_economicos)
 sheet_economicos.update_cell(1, 7, f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-
-
