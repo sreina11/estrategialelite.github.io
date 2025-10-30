@@ -15,7 +15,10 @@ gc = gspread.service_account(filename='creds.json')
 spreadsheet = gc.open("Copia de Telegram Elite")
 sheet_rsi = spreadsheet.worksheet("RSI")
 sheet_stoch = spreadsheet.worksheet("ST")
-sheet_economicos = spreadsheet.worksheet("economicos")
+try:
+    sheet_economicos = spreadsheet.worksheet("economicos")
+except gspread.exceptions.WorksheetNotFound:
+    sheet_economicos = spreadsheet.add_worksheet(title="economicos", rows="100", cols="10")
 
 # === Activos válidos ===
 symbols = [
@@ -82,7 +85,7 @@ sheet_stoch.update_cell(1, 5, f"Última actualización: {datetime.now().strftime
 
 # === Indicadores económicos ===
 indicadores = {
-    "Tasa de Interés": "https://www.myfxbook.com/forex-economic-calendar/united-states/fed-interest-rate-decision",
+    "Tasa de Interés USA": "https://www.myfxbook.com/forex-economic-calendar/united-states/fed-interest-rate-decision",
     "PMI": "https://www.myfxbook.com/forex-economic-calendar/united-states/sp-global-manufacturing-pmi",
     "CPI": "https://www.myfxbook.com/forex-economic-calendar/united-states/inflation-rate-yoy",
     "PPI": "https://www.myfxbook.com/forex-economic-calendar/united-states/ppi-yoy",
@@ -90,13 +93,18 @@ indicadores = {
     "Jobless Claims": "https://www.myfxbook.com/forex-economic-calendar/united-states/initial-jobless-claims",
     "Non-Farm Payroll": "https://www.myfxbook.com/forex-economic-calendar/united-states/non-farm-payrolls",
     "GDP": "https://www.myfxbook.com/forex-economic-calendar/united-states/gdp-growth-rate-qoq",
-    "Industrial Production": "https://www.myfxbook.com/forex-economic-calendar/united-states/industrial-production-mom"
+    "Industrial Production": "https://www.myfxbook.com/forex-economic-calendar/united-states/industrial-production-mom",
+    "EUR Interest Rate": "https://www.myfxbook.com/forex-economic-calendar/euro-area/ecb-interest-rate-decision",
+    "Japan Interest Rate": "https://www.myfxbook.com/forex-economic-calendar/japan/boj-interest-rate-decision",
+    "England Interest Rate": "https://www.myfxbook.com/forex-economic-calendar/united-kingdom/boe-interest-rate-decision",
+    "Australia Interest Rate": "https://www.myfxbook.com/forex-economic-calendar/australia/rba-interest-rate-decision"
 }
 
 selectores_css = {
     "Fecha": 'div:nth-child(3) > div > div:nth-child(3) > div:nth-child(2) > span:nth-child(2)',
     "Actual": 'div:nth-child(3) > div > div:nth-child(2) > div:nth-child(4) > span:nth-child(2) > span',
-    "Esperado": 'div:nth-child(3) > div > div:nth-child(2) > div:nth-child(3) > span:nth-child(2)'
+    "Esperado": 'div:nth-child(3) > div > div:nth-child(2) > div:nth-child(3) > span:nth-child(2)',
+    "Anterior": 'div:nth-child(3) > div > div:nth-child(2) > div:nth-child(2) > span:nth-child(2) > span'
 }
 
 headers = {"User-Agent": "Mozilla/5.0"}
@@ -110,21 +118,24 @@ for nombre, url in indicadores.items():
 
         actual_raw = soup.select_one(selectores_css["Actual"])
         esperado_raw = soup.select_one(selectores_css["Esperado"])
+        anterior_raw = soup.select_one(selectores_css["Anterior"])
         fecha_raw = soup.select_one(selectores_css["Fecha"])
 
         actual = actual_raw.text.strip() if actual_raw else "No disponible"
         esperado = esperado_raw.text.strip() if esperado_raw else "No disponible"
+        anterior = anterior_raw.text.strip() if anterior_raw else "No disponible"
         fecha = fecha_raw.text.strip() if fecha_raw else "No disponible"
 
-        datos_economicos.append([nombre, fecha, actual, esperado])
+        datos_economicos.append([nombre, fecha, actual, esperado, anterior])
 
     except Exception as e:
         print(f"❌ Error en {nombre}: {e}")
-        datos_economicos.append([nombre, "Error", "Error", "Error"])
+        datos_economicos.append([nombre, "Error", "Error", "Error", "Error"])
 
 # === Escribir hoja "economicos" ===
 sheet_economicos.clear()
-sheet_economicos.update("A1:D1", [["Indicador", "Fecha", "Actual", "Esperado"]])
-sheet_economicos.update(f"A2:D{len(datos_economicos)+1}", datos_economicos)
-sheet_economicos.update_cell(1, 6, f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+sheet_economicos.update("A1:E1", [["Indicador", "Fecha", "Actual", "Esperado", "Anterior"]])
+sheet_economicos.update(f"A2:E{len(datos_economicos)+1}", datos_economicos)
+sheet_economicos.update_cell(1, 7, f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
 
