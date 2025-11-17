@@ -169,4 +169,7 @@ for nombre, url in indicadores.items():
 
         actual = actual_raw.text.strip() if actual_raw else "No disponible"
         esperado = esperado_raw.text.strip() if esperado_raw else "No disponible"
-        anterior = anterior_raw.text.strip() if anterior_raw
+        anterior = anterior_raw.text.strip() if anterior_raw else "No disponible"
+        fecha = fecha_raw.text.strip() if fecha_raw else "No disponible"
+
+        datos_economicos.append([nombre, fecha, actual, esperado
