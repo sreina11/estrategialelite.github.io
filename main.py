@@ -1,31 +1,29 @@
 import gspread
 from tradingview_ta import TA_Handler, Interval
-from datetime import datetime
-import json
 import os
 
-# Reconstruir archivo JSON desde secreto
+# === Reconstruir credenciales desde secreto ===
 creds_json = os.environ['GOOGLE_SHEETS_CREDENTIALS']
 with open('creds.json', 'w') as f:
     f.write(creds_json)
 
 gc = gspread.service_account(filename='creds.json')
-sheet_rsi = gc.open("Copia de Telegram Elite").worksheet("RSI BIN")
-sheet_stoch = gc.open("Copia de Telegram Elite").worksheet("STOC BIN")
-sheet_confluencias = gc.open("Copia de Telegram Elite").worksheet("confluencias bin")
+spreadsheet = gc.open("Copia de Telegram Elite")
+sheet_rsi = spreadsheet.worksheet("RSI")
+sheet_stoch = spreadsheet.worksheet("ST")
 
-# Lista consolidada de criptos relevantes
+# === Lista de criptos (BINANCE) ===
 symbols = [
     "PAXGUSDT", "BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "BNBUSDT"
 ]
 
-# Temporalidades corregidas
+# === Temporalidades ===
 intervals = {
-     "1H": Interval.INTERVAL_1_HOUR,
+    "1H": Interval.INTERVAL_1_HOUR,
     "4H": Interval.INTERVAL_4_HOURS
 }
 
-# RSI sin filtro
+# === RSI: recolectar datos 1H y 4H ===
 rsi_map = []
 for symbol in symbols:
     row = [symbol]
@@ -45,7 +43,7 @@ for symbol in symbols:
             row.append("N/A")
     rsi_map.append(row)
 
-# Stoch sin filtro
+# === Stoch: recolectar datos 1H y 4H ===
 stoch_map = []
 for symbol in symbols:
     row = [symbol]
@@ -65,26 +63,12 @@ for symbol in symbols:
             row.append("N/A")
     stoch_map.append(row)
 
-# Escribir RSI
+# === Escribir RSI en hoja "RSI" (G1:I) ===
 sheet_rsi.batch_clear(['G2:I'])
-sheet_rsi.update('G1:I1', [["Activo", "RSI 1H", "RSI 4H"]])
-sheet_rsi.update(f'G2:I{len(rsi_map)+1}', rsi_map)
+sheet_rsi.update(values=[["Activo", "RSI 1H", "RSI 4H"]], range_name='G1:I1')
+sheet_rsi.update(values=rsi_map, range_name=f'G2:I{len(rsi_map)+1}')
 
-# Escribir Stoch
+# === Escribir Stoch en hoja "ST" (G1:I) ===
 sheet_stoch.batch_clear(['G2:I'])
-sheet_stoch.update('G1:I1', [["Activo", "Activo", "RSI 1H", "RSI 4H"]])
-sheet_stoch.update(f'G2:I{len(stoch_map)+1}', stoch_map)
-
-# Confluencias: mostrar todos los valores sin filtrar
-sheet_confluencias.batch_clear(['G2:I'])
-sheet_confluencias.update('G1:I1', [["Activo", "RSI 1H", "RSI 4H"]])
-
-resultados = []
-for i, symbol in enumerate(symbols):
-    rsi_vals = rsi_map[i][1:]
-    stoch_vals = stoch_map[i][1:]
-    resultados.append([symbol] + rsi_vals + stoch_vals)
-
-sheet_confluencias.update(f'G2:I{len(resultados)+1}', resultados)
-
-
+sheet_stoch.update(values=[["Activo", "RSI 1H", "RSI 4H"]], range_name='G1:I1')
+sheet_stoch.update(values=stoch_map, range_name=f'G2:I{len(stoch_map)+1}')
