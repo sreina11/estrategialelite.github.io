@@ -80,7 +80,7 @@ sheet_rsi.update_cell(1, 5, f"Última actualización: {datetime.now().strftime('
 sheet_stoch.batch_clear(['A2:C'])
 sheet_stoch.update('A1:C1', [["Activo", "Stoch 1H", "Stoch 4H"]])
 sheet_stoch.update(f'A2:C{len(filtered_stoch)+1}', filtered_stoch)
-sheet_stoch.update_cell(1, 5, f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
 
 # === Indicadores económicos ===
 indicadores = {
