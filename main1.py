@@ -20,11 +20,13 @@ try:
 except gspread.exceptions.WorksheetNotFound:
     sheet_economicos = spreadsheet.add_worksheet(title="economicos", rows="100", cols="10")
 
-# === Activos válidos ===
+# === Activos válidos (incluye BTCUSD y ETHUSD desde OANDA) ===
 symbols = [
     "USDJPY", "USDCAD", "USDCHF", "AUDUSD", "EURUSD", "EURJPY", "EURGBP", "AUDJPY",
-    "GBPUSD", "GBPJPY", "CADJPY", "CHFJPY", "CADCHF"
+    "GBPUSD", "GBPJPY", "CADJPY", "CHFJPY", "CADCHF",
+    "BTCUSD", "ETHUSD"
 ]
+
 intervals = {
     "1H": Interval.INTERVAL_1_HOUR,
     "4H": Interval.INTERVAL_4_HOURS
@@ -39,7 +41,7 @@ for symbol in symbols:
             handler = TA_Handler(
                 symbol=symbol,
                 exchange="OANDA",
-                screener="forex",
+                screener="crypto" if symbol in ["BTCUSD", "ETHUSD"] else "forex",
                 interval=interval
             )
             analysis = handler.get_analysis()
@@ -59,7 +61,7 @@ for symbol in symbols:
             handler = TA_Handler(
                 symbol=symbol,
                 exchange="OANDA",
-                screener="forex",
+                screener="crypto" if symbol in ["BTCUSD", "ETHUSD"] else "forex",
                 interval=interval
             )
             analysis = handler.get_analysis()
@@ -79,7 +81,6 @@ sheet_rsi.update(f'A2:C{len(filtered_rsi)+1}', filtered_rsi)
 sheet_stoch.batch_clear(['A2:C'])
 sheet_stoch.update('A1:C1', [["Activo", "Stoch 1H", "Stoch 4H"]])
 sheet_stoch.update(f'A2:C{len(filtered_stoch)+1}', filtered_stoch)
-
 
 # === Indicadores económicos ===
 indicadores = {
