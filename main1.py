@@ -20,58 +20,11 @@ try:
 except gspread.exceptions.WorksheetNotFound:
     sheet_economicos = spreadsheet.add_worksheet(title="economicos", rows="100", cols="10")
 
-# === Activos válidos con exchange y screener ===
-symbols = {
-    # Índices y ETFs
-    "SPY": ("AMEX", "america"),
-    ".DJI": ("DJI", "america"),
-    "NDX": ("NASDAQ", "america"),
-
-    # Acciones
-    "MSFT": ("NASDAQ", "america"),
-    "GOOGL": ("NASDAQ", "america"),
-    "META": ("NASDAQ", "america"),
-    "IBM": ("NYSE", "america"),
-    "V": ("NYSE", "america"),
-    "JPM": ("NYSE", "america"),
-    "MA": ("NYSE", "america"),
-    "AAPL": ("NASDAQ", "america"),
-    "AMD": ("NASDAQ", "america"),
-    "NVDA": ("NASDAQ", "america"),
-    "AMZN": ("NASDAQ", "america"),
-    "KO": ("NYSE", "america"),
-    "DIS": ("NYSE", "america"),
-    "MCD": ("NYSE", "america"),
-    "NFLX": ("NASDAQ", "america"),
-    "CAT": ("NYSE", "america"),
-    "TSLA": ("NASDAQ", "america"),
-    "CVX": ("NYSE", "america"),
-    "XOM": ("NYSE", "america"),
-    "JNJ": ("NYSE", "america"),
-
-    # Criptos
-    "BTCUSD": ("BINANCE", "crypto"),
-    "ETHUSD": ("BINANCE", "crypto"),
-
-    # Forex
-    "USDJPY": ("OANDA", "forex"),
-    "USDCOP": ("OANDA", "forex"),
-    "USDCAD": ("OANDA", "forex"),
-    "USDCHF": ("OANDA", "forex"),
-    "GBPUSD": ("OANDA", "forex"),
-    "GBPJPY": ("OANDA", "forex"),
-    "EURAUD": ("OANDA", "forex"),
-    "EURUSD": ("OANDA", "forex"),
-    "EURJPY": ("OANDA", "forex"),
-    "EURGBP": ("OANDA", "forex"),
-    "AUDUSD": ("OANDA", "forex"),
-    "AUDJPY": ("OANDA", "forex"),
-    "NZDUSD": ("OANDA", "forex"),
-    "CHFJPY": ("OANDA", "forex"),
-    "CADJPY": ("OANDA", "forex"),
-    "CADCHF": ("OANDA", "forex"),
-}
-
+# === Activos válidos ===
+symbols = [
+    "USDJPY", "USDCAD", "USDCHF", "AUDUSD", "EURUSD", "EURJPY", "EURGBP", "AUDJPY",
+    "GBPUSD", "GBPJPY", "CADJPY", "CHFJPY", "CADCHF"
+]
 intervals = {
     "1H": Interval.INTERVAL_1_HOUR,
     "4H": Interval.INTERVAL_4_HOURS
@@ -79,14 +32,14 @@ intervals = {
 
 # === RSI ===
 filtered_rsi = []
-for symbol, (exchange, screener) in symbols.items():
+for symbol in symbols:
     row = [symbol]
     for label, interval in intervals.items():
         try:
             handler = TA_Handler(
                 symbol=symbol,
-                exchange=exchange,
-                screener=screener,
+                exchange="OANDA",
+                screener="forex",
                 interval=interval
             )
             analysis = handler.get_analysis()
@@ -99,14 +52,14 @@ for symbol, (exchange, screener) in symbols.items():
 
 # === Estocástico ===
 filtered_stoch = []
-for symbol, (exchange, screener) in symbols.items():
+for symbol in symbols:
     row = [symbol]
     for label, interval in intervals.items():
         try:
             handler = TA_Handler(
                 symbol=symbol,
-                exchange=exchange,
-                screener=screener,
+                exchange="OANDA",
+                screener="forex",
                 interval=interval
             )
             analysis = handler.get_analysis()
@@ -174,3 +127,12 @@ for nombre, url in indicadores.items():
 
         datos_economicos.append([nombre, fecha, actual, esperado, anterior])
 
+    except Exception as e:
+        print(f"❌ Error en {nombre}: {e}")
+        datos_economicos.append([nombre, "Error", "Error", "Error", "Error"])
+
+# === Escribir hoja "economicos" ===
+sheet_economicos.clear()
+sheet_economicos.update("A1:E1", [["Indicador", "Fecha", "Actual", "Esperado", "Anterior"]])
+sheet_economicos.update(f"A2:E{len(datos_economicos)+1}", datos_economicos)
+sheet_economicos.update_cell(1, 7, f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
