@@ -16,15 +16,13 @@ sheet_confluencias = gc.open("Copia de Telegram Elite").worksheet("confluencias 
 
 # Lista consolidada de criptos relevantes
 symbols = [
-    "ZECUSDT", "PROMUSDT", "PAXGUSDT", "OGUSDT", "MORPHOUSDT", "SAHARAUSDT", "TRXUSDT", "AWEUSDT", "REQUSDT", "SUNUSDT",
-    "CUSDT", "PUMPUSDT", "DOGSUSDT", "PIVXUSDT", "STRKUSDT", "1000CHEEMSUSDT", "ZENUSDT", "SCRTUSDT", "HEMIUSDT", "XNOUSDT",
-    "BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "DOGEUSDT", "BNBUSDT", "ADAUSDT", "SUIUSDT", "LINKUSDT", "LTCUSDT"
+    "PAXGUSDT", "BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "BNBUSDT"
 ]
 
 # Temporalidades corregidas
 intervals = {
-    "5m": Interval.INTERVAL_5_MINUTES,
-    "15m": Interval.INTERVAL_15_MINUTES
+     "1H": Interval.INTERVAL_1_HOUR,
+    "4H": Interval.INTERVAL_4_HOURS
 }
 
 # RSI sin filtro
@@ -68,20 +66,18 @@ for symbol in symbols:
     stoch_map.append(row)
 
 # Escribir RSI
-sheet_rsi.batch_clear(['A2:C'])
-sheet_rsi.update('A1:C1', [["Activo", "RSI 5M", "RSI 15M"]])
-sheet_rsi.update(f'A2:C{len(rsi_map)+1}', rsi_map)
-sheet_rsi.update_cell(1, 5, f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+sheet_rsi.batch_clear(['G2:I'])
+sheet_rsi.update('G1:I1', [["Activo", "RSI 1H", "RSI 4H"]])
+sheet_rsi.update(f'G2:I{len(rsi_map)+1}', rsi_map)
 
 # Escribir Stoch
-sheet_stoch.batch_clear(['A2:C'])
-sheet_stoch.update('A1:C1', [["Activo", "Stoch 5M", "Stoch 15M"]])
-sheet_stoch.update(f'A2:C{len(stoch_map)+1}', stoch_map)
-sheet_stoch.update_cell(1, 5, f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+sheet_stoch.batch_clear(['G2:I'])
+sheet_stoch.update('G1:I1', [["Activo", "Activo", "RSI 1H", "RSI 4H"]])
+sheet_stoch.update(f'G2:I{len(stoch_map)+1}', stoch_map)
 
 # Confluencias: mostrar todos los valores sin filtrar
-sheet_confluencias.batch_clear(['A2:E'])
-sheet_confluencias.update('A1:E1', [["Activo", "RSI 5M", "RSI 15M", "Stoch 5M", "Stoch 15M"]])
+sheet_confluencias.batch_clear(['G2:I'])
+sheet_confluencias.update('G1:I1', [["Activo", "RSI 1H", "RSI 4H"]])
 
 resultados = []
 for i, symbol in enumerate(symbols):
@@ -89,7 +85,6 @@ for i, symbol in enumerate(symbols):
     stoch_vals = stoch_map[i][1:]
     resultados.append([symbol] + rsi_vals + stoch_vals)
 
-sheet_confluencias.update(f'A2:E{len(resultados)+1}', resultados)
-sheet_confluencias.update_cell(1, 7, f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+sheet_confluencias.update(f'G2:I{len(resultados)+1}', resultados)
 
 
