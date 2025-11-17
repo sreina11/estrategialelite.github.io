@@ -88,7 +88,7 @@ for symbol, exchange in symbols_info.items():
 sheet_rsi.batch_clear(['D2:F'])
 sheet_rsi.update('D1:F1', [["Activo", "RSI 1H", "RSI 4H"]])
 if filtered_rsi:
-    sheet_rsi.update(f'A2:C{len(filtered_rsi)+1}', filtered_rsi)
+    sheet_rsi.update(f'D2:F{len(filtered_rsi)+1}', filtered_rsi)
 
 # Escribir Estocástico
 sheet_stoch.batch_clear(['D2:F'])
