@@ -21,8 +21,10 @@ except gspread.exceptions.WorksheetNotFound:
     sheet_economicos = spreadsheet.add_worksheet(title="economicos", rows="100", cols="10")
 
 # === Activos válidos ===
-symbols = ["SPY", ".DJI", "NDX", "MSFT", "GOOGL", "META", "IBM", "V", "JPM", "MA", "AAPL", "AMD", "NVDA", "AMZN", "KO", "DIS", "MCD", "NFLX", "CAT", "TSLA", "CVX", "XOM", "JNJ", "BTCUSD", "ETHUSD", "USDJPY", "USDCOP", "USDCAD", "USDCHF", "GBPUSD", "GBPJPY", "EURAUD", "EURUSD", "EURJPY", "EURGBP", "AUDUSD", "AUDJPY", "NZDUSD", "CHFJPY", "CADJPY", "CADCHF"]
-
+symbols = [
+    "USDJPY", "USDCAD", "USDCHF", "AUDUSD", "EURUSD", "EURJPY", "EURGBP", "AUDJPY",
+    "GBPUSD", "GBPJPY", "CADJPY", "CHFJPY", "CADCHF"
+]
 intervals = {
     "1H": Interval.INTERVAL_1_HOUR,
     "4H": Interval.INTERVAL_4_HOURS
