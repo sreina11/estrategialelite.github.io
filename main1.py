@@ -74,7 +74,6 @@ for symbol in symbols:
 sheet_rsi.batch_clear(['A2:C'])
 sheet_rsi.update('A1:C1', [["Activo", "RSI 1H", "RSI 4H"]])
 sheet_rsi.update(f'A2:C{len(filtered_rsi)+1}', filtered_rsi)
-sheet_rsi.update_cell(1, 5, f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
 # === Escribir Estocástico ===
 sheet_stoch.batch_clear(['A2:C'])
