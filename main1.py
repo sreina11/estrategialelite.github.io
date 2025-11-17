@@ -172,4 +172,5 @@ for nombre, url in indicadores.items():
         anterior = anterior_raw.text.strip() if anterior_raw else "No disponible"
         fecha = fecha_raw.text.strip() if fecha_raw else "No disponible"
 
-        datos_economicos.append([nombre, fecha, actual, esperado
+        datos_economicos.append([nombre, fecha, actual, esperado, anterior])
+
