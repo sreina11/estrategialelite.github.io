@@ -70,5 +70,5 @@ sheet_rsi.update(values=rsi_map, range_name=f'G2:I{len(rsi_map)+1}')
 
 # === Escribir Stoch en hoja "ST" (G1:I) ===
 sheet_stoch.batch_clear(['G2:I'])
-sheet_stoch.update(values=[["Activo", "RSI 1H", "RSI 4H"]], range_name='G1:I1')
+sheet_stoch.update(values=[["Activo","Stoch 1H", "Stoch 4H"]], range_name='G1:I1')
 sheet_stoch.update(values=stoch_map, range_name=f'G2:I{len(stoch_map)+1}')
