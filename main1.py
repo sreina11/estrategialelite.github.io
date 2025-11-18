@@ -20,56 +20,99 @@ try:
 except gspread.exceptions.WorksheetNotFound:
     sheet_economicos = spreadsheet.add_worksheet(title="economicos", rows="100", cols="10")
 
-# === Activos válidos (incluye BTCUSD y ETHUSD desde OANDA) ===
-symbols = [
+# === Activos válidos (FX + BTCUSD/ETHUSD) ===
+symbols_fx = [
     "USDJPY", "USDCAD", "USDCHF", "AUDUSD", "EURUSD", "EURJPY", "EURGBP", "AUDJPY",
-    "GBPUSD", "GBPJPY", "CADJPY", "CHFJPY", "CADCHF",
-    "BTCUSD", "ETHUSD"
+    "GBPUSD", "GBPJPY", "CADJPY", "CHFJPY", "CADCHF"
 ]
+symbols_crypto_alias = ["BTCUSD", "ETHUSD"]  # escrito tal cual en la hoja
 
 intervals = {
     "1H": Interval.INTERVAL_1_HOUR,
     "4H": Interval.INTERVAL_4_HOURS
 }
 
+# Exchanges candidatos para BTCUSD/ETHUSD (en orden de preferencia)
+crypto_exchanges_fallback = ["OANDA", "BITSTAMP", "BITFINEX", "COINBASE"]
+
+def get_indicator_with_fallback(symbol_alias, indicator_key, interval):
+    """
+    Intenta obtener un indicador para symbol_alias (p.ej. BTCUSD) probando exchanges candidatos.
+    Devuelve float o 'N/A' si ninguno funciona. Mantiene el nombre escrito como BTCUSD/ETHUSD.
+    """
+    for ex in crypto_exchanges_fallback:
+        try:
+            handler = TA_Handler(
+                symbol=symbol_alias,
+                exchange=ex,
+                screener="crypto",
+                interval=interval
+            )
+            analysis = handler.get_analysis()
+            val = analysis.indicators.get(indicator_key)
+            if val is not None:
+                return round(val, 2)
+        except Exception as e:
+            # Intento fallido, probamos el siguiente exchange
+            continue
+    return "N/A"
+
 # === RSI ===
 filtered_rsi = []
-for symbol in symbols:
+
+# FX (OANDA)
+for symbol in symbols_fx:
     row = [symbol]
     for label, interval in intervals.items():
         try:
             handler = TA_Handler(
                 symbol=symbol,
                 exchange="OANDA",
-                screener="crypto" if symbol in ["BTCUSD", "ETHUSD"] else "forex",
+                screener="forex",
                 interval=interval
             )
             analysis = handler.get_analysis()
             rsi = analysis.indicators.get("RSI")
             row.append(round(rsi, 2) if rsi is not None else "N/A")
         except Exception as e:
-            print(f"RSI error en {symbol} ({label}): {e}")
             row.append("N/A")
+    filtered_rsi.append(row)
+
+# BTCUSD/ETHUSD con fallback de exchanges (nombre escrito tal cual)
+for alias_symbol in symbols_crypto_alias:
+    row = [alias_symbol]
+    for label, interval in intervals.items():
+        rsi_val = get_indicator_with_fallback(alias_symbol, "RSI", interval)
+        row.append(rsi_val)
     filtered_rsi.append(row)
 
 # === Estocástico ===
 filtered_stoch = []
-for symbol in symbols:
+
+# FX (OANDA)
+for symbol in symbols_fx:
     row = [symbol]
     for label, interval in intervals.items():
         try:
             handler = TA_Handler(
                 symbol=symbol,
                 exchange="OANDA",
-                screener="crypto" if symbol in ["BTCUSD", "ETHUSD"] else "forex",
+                screener="forex",
                 interval=interval
             )
             analysis = handler.get_analysis()
             stoch = analysis.indicators.get("Stoch.K")
             row.append(round(stoch, 2) if stoch is not None else "N/A")
         except Exception as e:
-            print(f"Stoch error en {symbol} ({label}): {e}")
             row.append("N/A")
+    filtered_stoch.append(row)
+
+# BTCUSD/ETHUSD con fallback de exchanges (nombre escrito tal cual)
+for alias_symbol in symbols_crypto_alias:
+    row = [alias_symbol]
+    for label, interval in intervals.items():
+        stoch_val = get_indicator_with_fallback(alias_symbol, "Stoch.K", interval)
+        row.append(stoch_val)
     filtered_stoch.append(row)
 
 # === Escribir RSI ===
@@ -136,3 +179,4 @@ sheet_economicos.clear()
 sheet_economicos.update("A1:E1", [["Indicador", "Fecha", "Actual", "Esperado", "Anterior"]])
 sheet_economicos.update(f"A2:E{len(datos_economicos)+1}", datos_economicos)
 sheet_economicos.update_cell(1, 7, f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
