@@ -1,7 +1,6 @@
 import gspread
 from tradingview_ta import TA_Handler, Interval
 from datetime import datetime
-import json
 import os
 
 # Reconstruir archivo JSON desde secreto
@@ -20,7 +19,7 @@ symbols_info = {
     "MA": "NYSE", "AAPL": "NASDAQ", "AMD": "NASDAQ", "NVDA": "NASDAQ", "AMZN": "NASDAQ",
     "KO": "NYSE", "DIS": "NYSE", "MCD": "NYSE", "NFLX": "NASDAQ", "CAT": "NYSE",
     "TSLA": "NASDAQ", "XOM": "NYSE", "CVX": "NYSE", "JNJ": "NYSE",
-    "SPY": "AMEX", "NDX": "NASDAQ", "US30": "OANDA"  # corregido para mayor compatibilidad
+    "SPY": "AMEX", "NDX": "NASDAQ", "US30": "OANDA"
 }
 
 intervals = {
@@ -28,12 +27,10 @@ intervals = {
     "4H": Interval.INTERVAL_4_HOURS
 }
 
-# RSI filtrado
-filtered_rsi = []
-
+# RSI de todos los símbolos
+all_rsi = []
 for symbol, exchange in symbols_info.items():
     row = [symbol]
-    match = False
     for label, interval in intervals.items():
         try:
             handler = TA_Handler(
@@ -44,24 +41,16 @@ for symbol, exchange in symbols_info.items():
             )
             analysis = handler.get_analysis()
             rsi = analysis.indicators.get("RSI")
-            if rsi is not None:
-                row.append(round(rsi, 2))
-                if rsi <= 30 or rsi >= 70:
-                    match = True
-            else:
-                row.append("N/A")
+            row.append(round(rsi, 2) if rsi is not None else "")
         except Exception as e:
             print(f"RSI error en {symbol} ({label}): {e}")
-            row.append("N/A")
-    if match:
-        filtered_rsi.append(row)
+            row.append("")
+    all_rsi.append(row)
 
-# Estocástico filtrado
-filtered_stoch = []
-
+# Estocástico de todos los símbolos
+all_stoch = []
 for symbol, exchange in symbols_info.items():
     row = [symbol]
-    match = False
     for label, interval in intervals.items():
         try:
             handler = TA_Handler(
@@ -72,27 +61,16 @@ for symbol, exchange in symbols_info.items():
             )
             analysis = handler.get_analysis()
             stoch = analysis.indicators.get("Stoch.K")
-            if stoch is not None:
-                row.append(round(stoch, 2))
-                if stoch <= 20 or stoch >= 80:
-                    match = True
-            else:
-                row.append("N/A")
+            row.append(round(stoch, 2) if stoch is not None else "")
         except Exception as e:
             print(f"Stoch error en {symbol} ({label}): {e}")
-            row.append("N/A")
-    if match:
-        filtered_stoch.append(row)
+            row.append("")
+    all_stoch.append(row)
 
-# Escribir RSI
-sheet_rsi.batch_clear(['D2:F'])
-sheet_rsi.update('D1:F1', [["Activo", "RSI 1H", "RSI 4H"]])
-if filtered_rsi:
-    sheet_rsi.update(f'D2:F{len(filtered_rsi)+1}', filtered_rsi)
+# Escribir RSI en A17:C
+sheet_rsi.batch_clear(['A17:C'])
+sheet_rsi.update(f'A17:C{16+len(all_rsi)}', all_rsi)
 
-# Escribir Estocástico
-sheet_stoch.batch_clear(['D2:F'])
-sheet_stoch.update('D1:F1', [["Activo", "Stoch 1H", "Stoch 4H"]])
-if filtered_stoch:
-    sheet_stoch.update(f'D2:F{len(filtered_stoch)+1}', filtered_stoch)
-
+# Escribir Estocástico en A17:C
+sheet_stoch.batch_clear(['A17:C'])
+sheet_stoch.update(f'A17:C{16+len(all_stoch)}', all_stoch)
