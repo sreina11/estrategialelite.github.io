@@ -25,7 +25,7 @@ symbols_fx = [
     "USDJPY", "USDCAD", "USDCHF", "AUDUSD", "EURUSD", "EURJPY", "EURGBP", "AUDJPY",
     "GBPUSD", "GBPJPY", "CADJPY", "CHFJPY", "CADCHF"
 ]
-symbols_crypto_alias = ["BTCUSD", "ETHUSD"]  # escrito tal cual en la hoja
+symbols_crypto_alias = ["BTCUSD", "ETHUSD", "PAXGUSD"]  # escrito tal cual en la hoja
 
 intervals = {
     "1D": Interval.INTERVAL_1_DAY,
