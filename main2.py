@@ -15,11 +15,11 @@ sheet_stoch = gc.open("Copia de Telegram Elite").worksheet("ST")
 
 # Símbolos con su exchange correcto
 symbols_info = {
-    "GOOGL": "NASDAQ", "META": "NASDAQ", "IBM": "NYSE", "V": "NYSE", "JPM": "NYSE",
+    "GOOGL": "NASDAQ", "META": "NASDAQ", "IBM": "NYSE", "V": "NYSE", "JPM": "NYSE", "MSFT": "NASDAQ",
     "MA": "NYSE", "AAPL": "NASDAQ", "AMD": "NASDAQ", "NVDA": "NASDAQ", "AMZN": "NASDAQ",
     "KO": "NYSE", "DIS": "NYSE", "MCD": "NYSE", "NFLX": "NASDAQ", "CAT": "NYSE",
     "TSLA": "NASDAQ", "XOM": "NYSE", "CVX": "NYSE", "JNJ": "NYSE",
-    "SPY": "AMEX", "NDX": "NASDAQ", "US30": "OANDA"
+    "SPY": "AMEX", "NDX": "NASDAQ": "OANDA"
 }
 
 intervals = {
