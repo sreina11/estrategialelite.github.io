@@ -23,7 +23,7 @@ symbols_info = {
 }
 
 intervals = {
-    "1H": Interval.INTERVAL_1_HOUR,
+    "1D": Interval.INTERVAL_1_DAY,
     "4H": Interval.INTERVAL_4_HOURS
 }
 
