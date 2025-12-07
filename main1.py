@@ -28,7 +28,7 @@ symbols_fx = [
 symbols_crypto_alias = ["BTCUSD", "ETHUSD"]  # escrito tal cual en la hoja
 
 intervals = {
-    "1H": Interval.INTERVAL_1_HOUR,
+    "1D": Interval.INTERVAL_1_DAY,
     "4H": Interval.INTERVAL_4_HOURS
 }
 
@@ -117,12 +117,12 @@ for alias_symbol in symbols_crypto_alias:
 
 # === Escribir RSI ===
 sheet_rsi.batch_clear(['A2:C'])
-sheet_rsi.update('A1:C1', [["Activo", "RSI 1H", "RSI 4H"]])
+sheet_rsi.update('A1:C1', [["Activo", "RSI 1D", "RSI 4H"]])
 sheet_rsi.update(f'A2:C{len(filtered_rsi)+1}', filtered_rsi)
 
 # === Escribir Estocástico ===
 sheet_stoch.batch_clear(['A2:C'])
-sheet_stoch.update('A1:C1', [["Activo", "Stoch 1H", "Stoch 4H"]])
+sheet_stoch.update('A1:C1', [["Activo", "Stoch 1D", "Stoch 4H"]])
 sheet_stoch.update(f'A2:C{len(filtered_stoch)+1}', filtered_stoch)
 
 # === Indicadores económicos ===
