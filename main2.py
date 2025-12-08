@@ -67,10 +67,10 @@ for symbol, exchange in symbols_info.items():
             row.append("")
     all_stoch.append(row)
 
-# Escribir RSI en A17:C
-sheet_rsi.batch_clear(['A17:C'])
-sheet_rsi.update(f'A17:C{16+len(all_rsi)}', all_rsi)
+# Escribir RSI en A15:C
+sheet_rsi.batch_clear(['A15:C'])
+sheet_rsi.update(f'A15:C{14+len(all_rsi)}', all_rsi)
 
-# Escribir Estocástico en A17:C
-sheet_stoch.batch_clear(['A17:C'])
-sheet_stoch.update(f'A17:C{16+len(all_stoch)}', all_stoch)
+# Escribir Estocástico en A15:C
+sheet_stoch.batch_clear(['A15:C'])
+sheet_stoch.update(f'A15:C{14+len(all_stoch)}', all_stoch)
