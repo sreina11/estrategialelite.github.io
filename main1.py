@@ -116,12 +116,12 @@ for alias_symbol in symbols_crypto_alias:
     filtered_stoch.append(row)
 
 # === Escribir RSI ===
-sheet_rsi.batch_clear(['A2:C'])
+sheet_rsi.batch_clear(['A2:C15'])
 sheet_rsi.update('A1:C1', [["Activo", "RSI 1D", "RSI 4H"]])
 sheet_rsi.update(f'A2:C{len(filtered_rsi)+1}', filtered_rsi)
 
 # === Escribir Estocástico ===
-sheet_stoch.batch_clear(['A2:C'])
+sheet_stoch.batch_clear(['A2:C15'])
 sheet_stoch.update('A1:C1', [["Activo", "Stoch 1D", "Stoch 4H"]])
 sheet_stoch.update(f'A2:C{len(filtered_stoch)+1}', filtered_stoch)
 
