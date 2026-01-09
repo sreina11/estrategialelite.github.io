@@ -14,52 +14,45 @@ spreadsheet = gc.open("Copia de Telegram Elite")
 sheet_rsi = spreadsheet.worksheet("RSI")
 sheet_stoch = spreadsheet.worksheet("ST")
 
-# === Activos válidos ===
+# === Activos (FX + BTC/ETH) ===
 symbols_fx = [
     "USDJPY", "AUDUSD", "EURUSD", "EURJPY", "EURGBP", "AUDJPY",
     "GBPUSD", "GBPJPY", "CADJPY", "CHFJPY", "CADCHF"
 ]
 
-# Añadimos XAUUSD, DXY y UKOIL a la lista de búsqueda especial
-symbols_especiales = ["BTCUSD", "ETHUSD", "XAUUSD", "DXY", "UKOIL"]
+symbols_crypto = ["BTCUSD", "ETHUSD"]
 
 intervals = {
     "1D": Interval.INTERVAL_1_DAY,
     "4H": Interval.INTERVAL_4_HOURS
 }
 
-# Exchanges candidatos para activos especiales (Crypto, Oro, DXY, Oil)
-exchanges_fallback = ["OANDA", "BITSTAMP", "SAXO", "TVC", "ICE"]
+# Exchanges para Crypto Fallback
+crypto_exchanges_fallback = ["OANDA", "BITSTAMP", "BITFINEX", "COINBASE"]
 
-def get_indicator_with_fallback(symbol_alias, indicator_key, interval):
-    """
-    Busca indicadores probando diferentes exchanges.
-    """
-    # Determinamos el screener según el activo
-    screener = "crypto" if "USD" in symbol_alias and "XAU" not in symbol_alias else "forex"
-    if symbol_alias in ["DXY", "UKOIL"]: screener = "cfd"
-
-    for ex in exchanges_fallback:
+def get_crypto_indicator(symbol, indicator_key, interval):
+    """ Intenta obtener indicador de crypto con fallback de exchanges """
+    for ex in crypto_exchanges_fallback:
         try:
             handler = TA_Handler(
-                symbol=symbol_alias,
+                symbol=symbol,
                 exchange=ex,
-                screener=screener,
+                screener="crypto",
                 interval=interval
             )
             analysis = handler.get_analysis()
             val = analysis.indicators.get(indicator_key)
             if val is not None:
                 return round(val, 2)
-        except Exception:
+        except:
             continue
     return "N/A"
 
-# === Procesamiento de Datos (RSI y STOCH) ===
+# === Procesamiento ===
 filtered_rsi = []
 filtered_stoch = []
 
-# 1. Procesar FX estándar (OANDA)
+# 1. Procesar FX (OANDA)
 for symbol in symbols_fx:
     row_rsi = [symbol]
     row_stoch = [symbol]
@@ -72,41 +65,39 @@ for symbol in symbols_fx:
                 interval=interval
             )
             analysis = handler.get_analysis()
-            
             rsi = analysis.indicators.get("RSI")
             st = analysis.indicators.get("Stoch.K")
-            
             row_rsi.append(round(rsi, 2) if rsi is not None else "N/A")
             row_stoch.append(round(st, 2) if st is not None else "N/A")
-        except Exception:
+        except:
             row_rsi.append("N/A")
             row_stoch.append("N/A")
     filtered_rsi.append(row_rsi)
     filtered_stoch.append(row_stoch)
 
-# 2. Procesar Especiales (BTC, ETH, XAU, DXY, UKOIL)
-for alias in symbols_especiales:
-    row_rsi = [alias]
-    row_stoch = [alias]
+# 2. Procesar Crypto (BTC/ETH)
+for symbol in symbols_crypto:
+    row_rsi = [symbol]
+    row_stoch = [symbol]
     for label, interval in intervals.items():
-        row_rsi.append(get_indicator_with_fallback(alias, "RSI", interval))
-        row_stoch.append(get_indicator_with_fallback(alias, "Stoch.K", interval))
+        row_rsi.append(get_crypto_indicator(symbol, "RSI", interval))
+        row_stoch.append(get_crypto_indicator(symbol, "Stoch.K", interval))
     filtered_rsi.append(row_rsi)
     filtered_stoch.append(row_stoch)
 
-# === Escribir en Google Sheets ===
+# === Escritura en Sheets ===
 
-# RSI
-sheet_rsi.batch_clear(['A2:C30'])
+# Limpiar y actualizar RSI
+sheet_rsi.batch_clear(['A2:C20'])
 sheet_rsi.update('A1:C1', [["Activo", "RSI 1D", "RSI 4H"]])
 sheet_rsi.update(f'A2:C{len(filtered_rsi)+1}', filtered_rsi)
 
-# Estocástico
-sheet_stoch.batch_clear(['A2:C30'])
+# Limpiar y actualizar Estocástico
+sheet_stoch.batch_clear(['A2:C20'])
 sheet_stoch.update('A1:C1', [["Activo", "Stoch 1D", "Stoch 4H"]])
 sheet_stoch.update(f'A2:C{len(filtered_stoch)+1}', filtered_stoch)
 
-# Marca de tiempo en la hoja RSI para control
-sheet_rsi.update_cell(1, 5, f"Actualizado: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+# Marca de tiempo de control
+sheet_rsi.update_cell(1, 5, f"Última actualización: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
-print("✅ Datos actualizados correctamente. Sección 'económicos' eliminada.")
+print("✅ Código simplificado: Se eliminaron económicos y activos extra.")
