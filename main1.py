@@ -88,12 +88,12 @@ for symbol in symbols_crypto:
 # === Escritura en Sheets ===
 
 # Limpiar y actualizar RSI
-sheet_rsi.batch_clear(['A2:C20'])
+sheet_rsi.batch_clear(['A2:C14'])
 sheet_rsi.update('A1:C1', [["Activo", "RSI 1D", "RSI 4H"]])
 sheet_rsi.update(f'A2:C{len(filtered_rsi)+1}', filtered_rsi)
 
 # Limpiar y actualizar Estocástico
-sheet_stoch.batch_clear(['A2:C20'])
+sheet_stoch.batch_clear(['A2:C14'])
 sheet_stoch.update('A1:C1', [["Activo", "Stoch 1D", "Stoch 4H"]])
 sheet_stoch.update(f'A2:C{len(filtered_stoch)+1}', filtered_stoch)
 
