@@ -1,6 +1,11 @@
 name: Ejecutar RSI desde main2.py
 
 on:
+  schedule:
+    - cron: "30 13 * * *"   # 8:30 AM NY
+    - cron: "35 13 * * *"   # 8:35 AM NY
+    - cron: "0 0 * * *"     # 7:00 PM NY
+    - cron: "5 0 * * *"     # 7:05 PM NY
   workflow_dispatch:
 
 jobs:
@@ -8,6 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GOOGLE_SHEETS_CREDENTIALS: ${{ secrets.GOOGLE_SHEETS_CREDENTIALS }}
+
     steps:
       - name: Clonar repositorio
         uses: actions/checkout@v3
