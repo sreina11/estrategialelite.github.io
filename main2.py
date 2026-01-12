@@ -14,12 +14,13 @@ sheet_rsi = gc.open("Copia de Telegram Elite").worksheet("RSI")
 sheet_stoch = gc.open("Copia de Telegram Elite").worksheet("ST")
 
 # Símbolos con su exchange correcto
+# Nota: Para NI225 usamos INDEX porque es un índice global
 symbols_info = {
     "GOOGL": "NASDAQ", "META": "NASDAQ", "IBM": "NYSE", "V": "NYSE", "JPM": "NYSE", "MSFT": "NASDAQ",
     "MA": "NYSE", "AAPL": "NASDAQ", "AMD": "NASDAQ", "NVDA": "NASDAQ", "AMZN": "NASDAQ",
     "KO": "NYSE", "DIS": "NYSE", "MCD": "NYSE", "NFLX": "NASDAQ", "CAT": "NYSE",
     "TSLA": "NASDAQ", "XOM": "NYSE", "CVX": "NYSE", "JNJ": "NYSE",
-    "SPY": "AMEX", "NDX": "NASDAQ", "NI225": "OSE"
+    "SPY": "AMEX", "NDX": "NASDAQ", "NI225": "INDEX"
 }
 
 intervals = {
@@ -33,10 +34,18 @@ for symbol, exchange in symbols_info.items():
     row = [symbol]
     for label, interval in intervals.items():
         try:
+            # Determinamos el screener correcto para cada activo
+            if exchange == "OANDA":
+                scr = "forex"
+            elif symbol == "NI225":
+                scr = "cfd"
+            else:
+                scr = "america"
+
             handler = TA_Handler(
                 symbol=symbol,
                 exchange=exchange,
-                screener="america" if exchange != "OANDA" else "forex",
+                screener=scr,
                 interval=interval
             )
             analysis = handler.get_analysis()
@@ -53,10 +62,18 @@ for symbol, exchange in symbols_info.items():
     row = [symbol]
     for label, interval in intervals.items():
         try:
+            # Determinamos el screener correcto para cada activo
+            if exchange == "OANDA":
+                scr = "forex"
+            elif symbol == "NI225":
+                scr = "cfd"
+            else:
+                scr = "america"
+
             handler = TA_Handler(
                 symbol=symbol,
                 exchange=exchange,
-                screener="america" if exchange != "OANDA" else "forex",
+                screener=scr,
                 interval=interval
             )
             analysis = handler.get_analysis()
