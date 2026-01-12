@@ -14,13 +14,13 @@ sheet_rsi = gc.open("Copia de Telegram Elite").worksheet("RSI")
 sheet_stoch = gc.open("Copia de Telegram Elite").worksheet("ST")
 
 # Símbolos con su exchange correcto
-# Nota: Para NI225 usamos INDEX porque es un índice global
+# CAMBIO: Usamos TVC para el Nikkei 225
 symbols_info = {
     "GOOGL": "NASDAQ", "META": "NASDAQ", "IBM": "NYSE", "V": "NYSE", "JPM": "NYSE", "MSFT": "NASDAQ",
     "MA": "NYSE", "AAPL": "NASDAQ", "AMD": "NASDAQ", "NVDA": "NASDAQ", "AMZN": "NASDAQ",
     "KO": "NYSE", "DIS": "NYSE", "MCD": "NYSE", "NFLX": "NASDAQ", "CAT": "NYSE",
     "TSLA": "NASDAQ", "XOM": "NYSE", "CVX": "NYSE", "JNJ": "NYSE",
-    "SPY": "AMEX", "NDX": "NASDAQ", "NI225": "INDEX"
+    "SPY": "AMEX", "NDX": "NASDAQ", "NI225": "TVC"
 }
 
 intervals = {
@@ -34,10 +34,10 @@ for symbol, exchange in symbols_info.items():
     row = [symbol]
     for label, interval in intervals.items():
         try:
-            # Determinamos el screener correcto para cada activo
+            # AJUSTE DE SCREENER: El Nikkei en TVC requiere screener 'cfd' o 'index'
             if exchange == "OANDA":
                 scr = "forex"
-            elif symbol == "NI225":
+            elif exchange == "TVC":
                 scr = "cfd"
             else:
                 scr = "america"
@@ -62,10 +62,9 @@ for symbol, exchange in symbols_info.items():
     row = [symbol]
     for label, interval in intervals.items():
         try:
-            # Determinamos el screener correcto para cada activo
             if exchange == "OANDA":
                 scr = "forex"
-            elif symbol == "NI225":
+            elif exchange == "TVC":
                 scr = "cfd"
             else:
                 scr = "america"
