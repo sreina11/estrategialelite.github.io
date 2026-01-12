@@ -19,7 +19,7 @@ symbols_info = {
     "MA": "NYSE", "AAPL": "NASDAQ", "AMD": "NASDAQ", "NVDA": "NASDAQ", "AMZN": "NASDAQ",
     "KO": "NYSE", "DIS": "NYSE", "MCD": "NYSE", "NFLX": "NASDAQ", "CAT": "NYSE",
     "TSLA": "NASDAQ", "XOM": "NYSE", "CVX": "NYSE", "JNJ": "NYSE",
-    "SPY": "AMEX", "NDX": "NASDAQ"
+    "SPY": "AMEX", "NDX": "NASDAQ", "NI225": "OSE"
 }
 
 intervals = {
